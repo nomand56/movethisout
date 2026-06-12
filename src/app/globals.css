@@ -1,26 +1,133 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Brand colours */
+  --color-haul-orange:  #F25800;
+  --color-orange-dark:  #C64500;
+  --color-jet:          #141414;
+  --color-white:        #FFFFFF;
+  --color-caution:      #FFC400;
+  --color-concrete:     #EFEDEA;
+
+  /* Fonts */
+  --font-display: 'Anton', Impact, sans-serif;
+  --font-body:    'Barlow', -apple-system, Arial, sans-serif;
+  --font-cond:    'Barlow Condensed', Arial Narrow, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #FFFFFF;
+  color: #141414;
+  font-family: 'Barlow', -apple-system, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ── Brand utilities ── */
+.font-display { font-family: 'Anton', Impact, sans-serif; }
+.font-cond    { font-family: 'Barlow Condensed', Arial Narrow, sans-serif; }
+
+/* Hard box shadow — the brand shadow */
+.shadow-hard { box-shadow: 4px 4px 0 #141414; }
+.shadow-hard-orange { box-shadow: 4px 4px 0 #F25800; }
+
+/* Section heading sign — black bg, orange shadow */
+.sign-heading {
+  display: inline-block;
+  background: #141414;
+  color: #FFFFFF;
+  font-family: 'Anton', Impact, sans-serif;
+  text-transform: uppercase;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: 0.02em;
+  padding: 8px 22px 6px;
+  box-shadow: 4px 4px 0 #F25800;
+}
+
+/* Pill / status badge */
+.pill {
+  font-family: 'Barlow Condensed', Arial Narrow, sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  padding: 3px 9px;
+  border: 1.5px solid #141414;
+  text-transform: uppercase;
+}
+.pill-live   { background: #F25800; border-color: #F25800; color: #FFFFFF; }
+.pill-done   { background: #141414; color: #FFFFFF; }
+.pill-issue  { border-color: #F25800; color: #F25800; }
+
+/* Hazard stripe */
+.hazard-stripe {
+  height: 14px;
+  background: repeating-linear-gradient(-45deg, #F25800 0 18px, #141414 18px 36px);
+}
+
+/* Primary button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #F25800;
+  color: #FFFFFF;
+  border: 3px solid #141414;
+  box-shadow: 4px 4px 0 #141414;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 800;
+  font-size: 15.5px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: filter 0.15s;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Secondary button */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  color: #141414;
+  border: 3px solid #141414;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 800;
+  font-size: 15.5px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.btn-secondary:hover { background: #EFEDEA; }
+
+/* Card */
+.brand-card {
+  border: 3px solid #141414;
+  background: #FFFFFF;
+  padding: 22px;
+}
+
+/* Input */
+.brand-input {
+  width: 100%;
+  border: 3px solid #141414;
+  background: #FFFFFF;
+  color: #141414;
+  font-family: 'Barlow', sans-serif;
+  font-size: 15px;
+  padding: 11px 14px;
+  outline: none;
+  transition: box-shadow 0.15s;
+}
+.brand-input:focus { box-shadow: 4px 4px 0 #F25800; }
+.brand-input::placeholder { color: #9ca3af; }

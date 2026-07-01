@@ -2,17 +2,19 @@ import { useJobCreationStore } from '../../../store/jobCreationStore'
 import AddressAutocomplete from '../../../components/maps/AddressAutocomplete'
 import Button from '../../../components/ui/Button'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props { onNext: () => void }
 
 export default function StepAddresses({ onNext }: Props) {
+  const { t } = useTranslation()
   const store = useJobCreationStore()
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!store.pickup_address) e.pickup = 'Select a pickup address'
-    if (!store.dropoff_address) e.dropoff = 'Select a drop-off address'
+    if (!store.pickup_address) e.pickup = t('steps.addresses.pickup_error')
+    if (!store.dropoff_address) e.dropoff = t('steps.addresses.dropoff_error')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -20,8 +22,8 @@ export default function StepAddresses({ onNext }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <AddressAutocomplete
-        label="Pickup address"
-        placeholder="123 Main St, Sydney NSW"
+        label={t('steps.addresses.pickup_label')}
+        placeholder={t('steps.addresses.pickup_placeholder')}
         error={errors.pickup}
         defaultValue={store.pickup_address}
         onPlaceSelected={({ address, lat, lng }) =>
@@ -29,8 +31,8 @@ export default function StepAddresses({ onNext }: Props) {
         }
       />
       <AddressAutocomplete
-        label="Drop-off address"
-        placeholder="456 Park Ave, Melbourne VIC"
+        label={t('steps.addresses.dropoff_label')}
+        placeholder={t('steps.addresses.dropoff_placeholder')}
         error={errors.dropoff}
         defaultValue={store.dropoff_address}
         onPlaceSelected={({ address, lat, lng }) =>
@@ -38,16 +40,16 @@ export default function StepAddresses({ onNext }: Props) {
         }
       />
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Notes for mover (optional)</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('steps.addresses.notes_label')}</label>
         <textarea
           className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
           rows={3}
-          placeholder="Gate code, parking info, fragile items…"
+          placeholder={t('steps.addresses.notes_placeholder')}
           value={store.notes}
           onChange={(e) => store.setNotes(e.target.value)}
         />
       </div>
-      <Button fullWidth onClick={() => validate() && onNext()}>Continue</Button>
+      <Button fullWidth onClick={() => validate() && onNext()}>{t('steps.addresses.continue')}</Button>
     </div>
   )
 }

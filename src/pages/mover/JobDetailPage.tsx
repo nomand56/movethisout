@@ -6,7 +6,10 @@ import { useAuthStore } from '../../store/authStore'
 import { StatusBadge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
-import { MapPin, Clock, Package, DollarSign } from 'lucide-react'
+import Modal from '../../components/ui/Modal'
+import ChatPanel from '../../components/chat/ChatPanel'
+import ChatUnreadDot from '../../components/chat/ChatUnreadDot'
+import { MapPin, Clock, Package, DollarSign, MessageCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Job } from '../../types'
 
@@ -18,6 +21,7 @@ export default function MoverJobDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [claimError, setClaimError] = useState('')
+  const [showChat, setShowChat] = useState(false)
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['mover-job', id],
@@ -108,6 +112,18 @@ export default function MoverJobDetailPage() {
         </div>
       </div>
 
+      {/* Messages */}
+      {job.status !== 'open' && (
+        <button
+          onClick={() => setShowChat(true)}
+          className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 text-left hover:shadow-md transition"
+        >
+          <MessageCircle size={18} className="text-brand-500" />
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</span>
+          <ChatUnreadDot jobId={id!} />
+        </button>
+      )}
+
       {/* Items */}
       {job.items && job.items.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
@@ -147,6 +163,10 @@ export default function MoverJobDetailPage() {
       {hasActiveJob && job.status === 'open' && (
         <p className="text-xs text-center text-gray-400">Complete your current job before claiming a new one.</p>
       )}
+
+      <Modal open={showChat} onClose={() => setShowChat(false)} title="Messages">
+        <ChatPanel jobId={id!} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
+      </Modal>
     </div>
   )
 }

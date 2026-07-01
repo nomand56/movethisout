@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/authStore'
+import { consumePostAuthRedirect } from './lib/postAuthRedirect'
+import { useReferralCapture } from './hooks/useReferralCapture'
 import OfflineBanner from './components/ui/OfflineBanner'
 import Spinner from './components/ui/Spinner'
 import ProtectedRoute from './components/auth/ProtectedRoute'
@@ -13,15 +15,21 @@ import RequesterLayout from './components/layout/RequesterLayout'
 import MoverLayout from './components/layout/MoverLayout'
 import AdminLayout from './components/layout/AdminLayout'
 
+// Public pages
+import LandingPage from './pages/public/LandingPage'
+
 // Auth pages
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import VerifyEmailPage from './pages/auth/VerifyEmailPage'
+import AuthCallbackPage from './pages/auth/AuthCallbackPage'
+import ChooseRoleInterstitial from './pages/auth/ChooseRoleInterstitial'
 
 // Requester pages
 import RequesterDashboard from './pages/app/DashboardPage'
-import NewJobPage from './pages/app/NewJobPage'
+import BookingWizardShell from './pages/app/BookingWizardShell'
 import RequesterJobDetail from './pages/app/JobDetailPage'
+import SettingsPage from './pages/app/SettingsPage'
 
 // Mover pages
 import MoverDashboard from './pages/mover/DashboardPage'
@@ -41,7 +49,11 @@ import RevenuePage from './pages/admin/RevenuePage'
 function RootRedirect() {
   const { profile, loading } = useAuthStore()
   if (loading) return <div className="flex h-screen items-center justify-center"><Spinner className="h-10 w-10" /></div>
-  if (!profile) return <Navigate to="/login" replace />
+  if (profile) {
+    const redirect = consumePostAuthRedirect()
+    if (redirect) return <Navigate to={redirect} replace />
+  }
+  if (!profile) return <LandingPage />
   if (profile.role === 'admin') return <Navigate to="/admin/dashboard" replace />
   if (profile.role === 'mover') return <Navigate to="/mover/dashboard" replace />
   return <Navigate to="/app/dashboard" replace />
@@ -49,6 +61,8 @@ function RootRedirect() {
 
 export default function App() {
   const { setSession, setProfile, setLoading } = useAuthStore()
+
+  useReferralCapture()
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -82,13 +96,17 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/welcome" element={<ChooseRoleInterstitial />} />
+          <Route path="/book" element={<BookingWizardShell authRequired={false} />} />
 
           {/* Requester */}
           <Route element={<ProtectedRoute role="requester" />}>
             <Route element={<RequesterLayout />}>
               <Route path="/app/dashboard" element={<RequesterDashboard />} />
-              <Route path="/app/jobs/new" element={<NewJobPage />} />
+              <Route path="/app/jobs/new" element={<BookingWizardShell authRequired={true} />} />
               <Route path="/app/jobs/:id" element={<RequesterJobDetail />} />
+              <Route path="/app/settings" element={<SettingsPage />} />
             </Route>
           </Route>
 
@@ -101,6 +119,7 @@ export default function App() {
               <Route path="/mover/jobs" element={<RequestCenterPage />} />
               <Route path="/mover/jobs/:id" element={<MoverJobDetail />} />
               <Route path="/mover/active" element={<ActiveJobPage />} />
+              <Route path="/mover/settings" element={<SettingsPage />} />
             </Route>
           </Route>
 

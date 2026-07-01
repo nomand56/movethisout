@@ -12,6 +12,9 @@ export interface Profile {
   phone: string
   role: UserRole
   is_suspended: boolean
+  sms_notifications_enabled: boolean
+  referral_code: string
+  account_credit: number
   created_at: string
 }
 
@@ -51,6 +54,7 @@ export interface Job {
   completion_photo_url: string | null
   signature_url: string | null
   cancel_reason: string | null
+  credit_applied?: number | null
   created_at: string
   updated_at: string
   requester?: Profile
@@ -104,6 +108,7 @@ export interface PricingConfig {
   rate_extra_large: number
   peak_multiplier: number
   commission_rate: number
+  referral_credit_amount: number
 }
 
 export interface JobStatusHistory {
@@ -111,6 +116,25 @@ export interface JobStatusHistory {
   job_id: string
   status: JobStatus
   created_at: string
+}
+
+export interface Message {
+  id: string
+  job_id: string
+  sender_id: string
+  content: string
+  created_at: string
+  read_at: string | null
+}
+
+export interface Referral {
+  id: string
+  referrer_id: string
+  referred_id: string
+  referral_code: string
+  status: 'pending' | 'completed'
+  created_at: string
+  completed_at: string | null
 }
 
 export interface PriceQuote {
@@ -122,6 +146,8 @@ export interface PriceQuote {
   item_cost: number
   time_multiplier: number
   is_peak: boolean
+  credit_applied: number
+  subtotal_before_credit: number
 }
 
 export interface JobCreationState {

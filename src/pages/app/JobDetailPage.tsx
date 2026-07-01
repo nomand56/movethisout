@@ -8,11 +8,15 @@ import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import StarRating from '../../components/ui/StarRating'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Modal from '../../components/ui/Modal'
 import LiveTrackingMap from '../../components/maps/LiveTrackingMap'
+import ChatPanel from '../../components/chat/ChatPanel'
+import ChatUnreadDot from '../../components/chat/ChatUnreadDot'
 import { useJsApiLoader } from '@react-google-maps/api'
 import type { Job, LocationEvent } from '../../types'
 import { format } from 'date-fns'
 import { requestPushPermission } from '../../hooks/usePushNotifications'
+import { MessageCircle } from 'lucide-react'
 
 const LIBRARIES: ('places')[] = ['places']
 const TIME_LABELS = { morning: '8am – 12pm', afternoon: '12pm – 5pm', evening: '5pm – 8pm' }
@@ -24,6 +28,7 @@ export default function RequesterJobDetail() {
   const [moverPos, setMoverPos] = useState<{ lat: number; lng: number } | null>(null)
   const [trail, setTrail] = useState<{ lat: number; lng: number }[]>([])
   const [showCancel, setShowCancel] = useState(false)
+  const [showChat, setShowChat] = useState(false)
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
@@ -183,6 +188,18 @@ export default function RequesterJobDetail() {
         </div>
       )}
 
+      {/* Messages */}
+      {job.mover_id && (
+        <button
+          onClick={() => setShowChat(true)}
+          className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 text-left hover:shadow-md transition"
+        >
+          <MessageCircle size={18} className="text-brand-500" />
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</span>
+          <ChatUnreadDot jobId={id!} />
+        </button>
+      )}
+
       {/* Items */}
       {job.items && job.items.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
@@ -252,6 +269,10 @@ export default function RequesterJobDetail() {
         loading={cancelMutation.isPending}
         danger
       />
+
+      <Modal open={showChat} onClose={() => setShowChat(false)} title="Messages">
+        <ChatPanel jobId={id!} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
+      </Modal>
     </div>
   )
 }

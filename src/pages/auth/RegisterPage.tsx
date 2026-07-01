@@ -3,7 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
+import { setPostAuthRedirect } from '../../lib/postAuthRedirect'
+import { setReferralCode } from '../../lib/referralCapture'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 
@@ -16,9 +19,12 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function RegisterPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const role = params.get('role') === 'mover' ? 'mover' : 'requester'
+  const redirect = params.get('redirect')
+  const ref = params.get('ref')
   const [serverError, setServerError] = useState('')
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -27,6 +33,8 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: FormData) => {
     setServerError('')
+    if (redirect) setPostAuthRedirect(redirect)
+    if (ref) setReferralCode(ref)
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -41,33 +49,48 @@ export default function RegisterPage() {
     navigate('/verify-email')
   }
 
+  const handleGoogleSignIn = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/auth/callback?role=' + role },
+    })
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
       <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">Create Account</h1>
+        <h1 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">{t('auth.register.title')}</h1>
         <p className="text-gray-500 text-center mb-8 text-sm">
-          Registering as <span className="font-semibold text-brand-500 capitalize">{role}</span>
+          {t('auth.register.registering_as')} <span className="font-semibold text-brand-500 capitalize">{role}</span>
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Input label="Full Name" placeholder="Jane Smith" error={errors.full_name?.message} {...register('full_name')} />
-          <Input label="Email" type="email" placeholder="you@example.com" error={errors.email?.message} {...register('email')} />
-          <Input label="Phone" type="tel" placeholder="+1 555 0123" error={errors.phone?.message} {...register('phone')} />
+          <Input label={t('auth.register.full_name_label')} placeholder={t('auth.register.full_name_placeholder')} error={errors.full_name?.message} {...register('full_name')} />
+          <Input label={t('auth.register.email_label')} type="email" placeholder={t('auth.register.email_placeholder')} error={errors.email?.message} {...register('email')} />
+          <Input label={t('auth.register.phone_label')} type="tel" placeholder={t('auth.register.phone_placeholder')} error={errors.phone?.message} {...register('phone')} />
           <Input
-            label="Password"
+            label={t('auth.register.password_label')}
             type="password"
-            placeholder="Min. 8 characters"
+            placeholder={t('auth.register.password_placeholder')}
             error={errors.password?.message}
-            hint="At least 8 characters"
+            hint={t('auth.register.password_hint')}
             {...register('password')}
           />
           {serverError && <p className="text-sm text-red-600 text-center">{serverError}</p>}
-          <Button type="submit" fullWidth loading={isSubmitting}>Create Account</Button>
+          <Button type="submit" fullWidth loading={isSubmitting}>{t('auth.register.submit')}</Button>
         </form>
 
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          <span className="text-xs text-gray-400">{t('auth.register.divider_or')}</span>
+          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+        </div>
+
+        <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>{t('auth.register.google')}</Button>
+
         <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{' '}
-          <Link to="/login" className="text-brand-500 font-medium hover:underline">Sign in</Link>
+          {t('auth.register.have_account')}{' '}
+          <Link to="/login" className="text-brand-500 font-medium hover:underline">{t('auth.register.signin')}</Link>
         </p>
       </div>
     </div>

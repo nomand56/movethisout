@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Plus, LogOut } from 'lucide-react'
+import { LayoutDashboard, Plus, Settings, LogOut } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function RequesterLayout() {
@@ -23,6 +23,9 @@ export default function RequesterLayout() {
             </NavLink>
             <NavLink to="/app/jobs/new" className={linkClass}>
               <Plus size={18} /> <span className="hidden sm:inline">New Move</span>
+            </NavLink>
+            <NavLink to="/app/settings" className={linkClass}>
+              <Settings size={18} /> <span className="hidden sm:inline">Settings</span>
             </NavLink>
             <button onClick={logout} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
               <LogOut size={18} />

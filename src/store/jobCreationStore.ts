@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { JobCreationState, DraftJobItem, TimeWindow, PriceQuote } from '../types'
 import { nanoid } from '../lib/nanoid'
 
@@ -34,17 +35,22 @@ const initial: JobCreationState = {
   quote: null,
 }
 
-export const useJobCreationStore = create<JobCreationStore>((set) => ({
-  ...initial,
-  setAddresses: (data) => set(data),
-  setSchedule: (scheduled_date, time_window) => set({ scheduled_date, time_window }),
-  setNotes: (notes) => set({ notes }),
-  addItem: (item) =>
-    set((s) => ({ items: [...s.items, { ...item, id: nanoid() }] })),
-  updateItem: (id, data) =>
-    set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, ...data } : i)) })),
-  removeItem: (id) =>
-    set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
-  setQuote: (quote) => set({ quote }),
-  reset: () => set(initial),
-}))
+export const useJobCreationStore = create<JobCreationStore>()(
+  persist(
+    (set) => ({
+      ...initial,
+      setAddresses: (data) => set(data),
+      setSchedule: (scheduled_date, time_window) => set({ scheduled_date, time_window }),
+      setNotes: (notes) => set({ notes }),
+      addItem: (item) =>
+        set((s) => ({ items: [...s.items, { ...item, id: nanoid() }] })),
+      updateItem: (id, data) =>
+        set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, ...data } : i)) })),
+      removeItem: (id) =>
+        set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+      setQuote: (quote) => set({ quote }),
+      reset: () => set(initial),
+    }),
+    { name: 'movethisout-job-draft' }
+  )
+)

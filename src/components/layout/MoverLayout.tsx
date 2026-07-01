@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Inbox, Zap, LogOut } from 'lucide-react'
+import { LayoutDashboard, Inbox, Zap, Settings, LogOut } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function MoverLayout() {
@@ -26,6 +26,9 @@ export default function MoverLayout() {
             </NavLink>
             <NavLink to="/mover/active" className={linkClass}>
               <Zap size={18} /> <span className="hidden sm:inline">Active</span>
+            </NavLink>
+            <NavLink to="/mover/settings" className={linkClass}>
+              <Settings size={18} /> <span className="hidden sm:inline">Settings</span>
             </NavLink>
             <button onClick={logout} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
               <LogOut size={18} />

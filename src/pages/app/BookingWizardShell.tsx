@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useJsApiLoader } from '@react-google-maps/api'
 import { useJobCreationStore } from '../../store/jobCreationStore'
@@ -8,13 +8,17 @@ import StepAddresses from './steps/StepAddresses'
 import StepSchedule from './steps/StepSchedule'
 import StepItems from './steps/StepItems'
 import StepReview from './steps/StepReview'
+import StepAuth from './steps/StepAuth'
 import Spinner from '../../components/ui/Spinner'
+
+interface Props { authRequired: boolean }
 
 const STEPS = ['Addresses', 'Schedule', 'Items', 'Review']
 const LIBRARIES: ('places')[] = ['places']
 
-export default function NewJobPage() {
+export default function BookingWizardShell({ authRequired }: Props) {
   const [step, setStep] = useState(0)
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false)
   const navigate = useNavigate()
   const { profile } = useAuthStore()
   const store = useJobCreationStore()
@@ -44,6 +48,7 @@ export default function NewJobPage() {
         platform_fee: store.quote.platform_fee,
         mover_payout: store.quote.mover_payout,
         distance_km: store.quote.distance_km,
+        credit_applied: store.quote.credit_applied ?? null,
       })
       .select()
       .single()
@@ -64,6 +69,21 @@ export default function NewJobPage() {
 
     store.reset()
     navigate(`/app/jobs/${job.id}`)
+  }
+
+  useEffect(() => {
+    if (awaitingConfirm && profile) {
+      setAwaitingConfirm(false)
+      confirmJob()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, awaitingConfirm])
+
+  const handleReviewConfirm = async () => {
+    setAwaitingConfirm(true)
+    if (!authRequired && !profile) {
+      setStep(4)
+    }
   }
 
   if (!isLoaded) {
@@ -91,7 +111,14 @@ export default function NewJobPage() {
       {step === 0 && <StepAddresses onNext={() => setStep(1)} />}
       {step === 1 && <StepSchedule onBack={() => setStep(0)} onNext={() => setStep(2)} />}
       {step === 2 && <StepItems onBack={() => setStep(1)} onNext={() => setStep(3)} />}
-      {step === 3 && <StepReview onBack={() => setStep(2)} onConfirm={confirmJob} />}
+      {step === 3 && (
+        <StepReview
+          onBack={() => setStep(2)}
+          onConfirm={handleReviewConfirm}
+          confirmLabel={!authRequired && !profile ? 'Continue' : undefined}
+        />
+      )}
+      {step === 4 && <StepAuth />}
     </div>
   )
 }

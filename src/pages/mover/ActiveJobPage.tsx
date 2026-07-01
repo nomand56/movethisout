@@ -7,7 +7,8 @@ import { useWakeLock } from '../../hooks/useWakeLock'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import SignaturePad from '../../components/signature/SignaturePad'
-import { Navigation, CheckCircle, Camera, PenLine } from 'lucide-react'
+import ChatPanel from '../../components/chat/ChatPanel'
+import { Navigation, CheckCircle, Camera, PenLine, MessageCircle } from 'lucide-react'
 import type { Job } from '../../types'
 
 type Step = 'navigate_pickup' | 'confirm_arrival' | 'loading' | 'navigate_dropoff' | 'delivery' | 'complete'
@@ -235,6 +236,15 @@ export default function ActiveJobPage() {
             </div>
           )
         })}
+      </div>
+
+      {/* Messages */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <MessageCircle size={16} className="text-brand-500" />
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</p>
+        </div>
+        <ChatPanel jobId={job.id} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
       </div>
 
       {currentStep !== 'complete' ? (

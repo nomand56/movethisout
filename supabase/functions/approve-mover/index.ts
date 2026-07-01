@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { getCallerProfile } from '../_shared/auth.ts'
+import { sendSmsBestEffort } from '../_shared/sms.ts'
 
 async function sendEmail(to: string, subject: string, html: string) {
   const apiKey = Deno.env.get('RESEND_API_KEY')
@@ -61,12 +62,14 @@ Deno.serve(async (req) => {
       'Your MoveThisOut mover application was approved',
       `<p>Hi ${moverProfileRow.full_name},</p><p>You're approved! You can now log in and start accepting jobs.</p>`
     )
+    await sendSmsBestEffort(admin, body.mover_id, 'Great news! Your MoveThisOut mover application has been approved.')
   } else {
     await sendEmail(
       moverProfileRow.email,
       'Your MoveThisOut mover application was not approved',
       `<p>Hi ${moverProfileRow.full_name},</p><p>Unfortunately your application was not approved.</p><p>Reason: ${body.reason}</p>`
     )
+    await sendSmsBestEffort(admin, body.mover_id, 'Your MoveThisOut mover application was not approved this time.')
   }
 
   return jsonResponse({ success: true })

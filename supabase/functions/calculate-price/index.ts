@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
     items: ItemInput[]
     scheduled_date: string
     time_window: 'morning' | 'afternoon' | 'evening'
+    apply_credit?: boolean
   }
   try {
     body = await req.json()
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, items, scheduled_date, time_window } = body
+  const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, items, scheduled_date, time_window, apply_credit } = body
 
   // SEC-402: validate coordinates before calling out to Google.
   if (!isValidLat(pickup_lat) || !isValidLng(pickup_lng) || !isValidLat(dropoff_lat) || !isValidLng(dropoff_lng)) {
@@ -75,9 +76,20 @@ Deno.serve(async (req) => {
   const subtotal = base_price + item_cost
   const peak = isPeak(scheduled_date, time_window)
   const time_multiplier = peak ? Number(pricing.peak_multiplier) : 1.0
-  const quoted_price = Math.round(subtotal * time_multiplier * 100) / 100
-  const platform_fee = Math.round(quoted_price * Number(pricing.commission_rate) * 100) / 100
-  const mover_payout = Math.round((quoted_price - platform_fee) * 100) / 100
+  const subtotal_before_credit = Math.round(subtotal * time_multiplier * 100) / 100
+
+  // Platform fee / mover payout are derived from the full job value, not the
+  // discounted price the requester ends up paying: the referral credit is a
+  // platform-funded marketing cost, so it must not shrink the mover's payout.
+  const platform_fee = Math.round(subtotal_before_credit * Number(pricing.commission_rate) * 100) / 100
+  const mover_payout = Math.round((subtotal_before_credit - platform_fee) * 100) / 100
+
+  let credit_applied = 0
+  if (apply_credit) {
+    const { data: freshProfile } = await admin.from('profiles').select('account_credit').eq('id', profile.id).single()
+    credit_applied = Math.min(Number(freshProfile?.account_credit ?? 0), subtotal_before_credit)
+  }
+  const quoted_price = Math.round((subtotal_before_credit - credit_applied) * 100) / 100
 
   return jsonResponse({
     quoted_price,
@@ -88,5 +100,7 @@ Deno.serve(async (req) => {
     item_cost,
     time_multiplier,
     is_peak: peak,
+    credit_applied,
+    subtotal_before_credit,
   })
 })

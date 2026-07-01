@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { getCallerProfile } from '../_shared/auth.ts'
+import { sendSmsBestEffort } from '../_shared/sms.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -37,6 +38,45 @@ Deno.serve(async (req) => {
     .single()
 
   if (updateError || !updated) return jsonResponse({ error: 'Could not complete job' }, 500)
+
+  await sendSmsBestEffort(admin, updated.requester_id, 'Your MoveThisOut job is complete! Please leave a review in the app.')
+
+  // Referral payout: if this is the requester's first ever completed job and
+  // they were referred, credit both sides. Isolated in its own try/catch so
+  // a referral bug never fails the job-completion response.
+  try {
+    const { data: referral } = await admin
+      .from('referrals')
+      .select('*')
+      .eq('referred_id', updated.requester_id)
+      .eq('status', 'pending')
+      .maybeSingle()
+
+    if (referral) {
+      const { count } = await admin
+        .from('jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('requester_id', updated.requester_id)
+        .eq('status', 'completed')
+
+      if (count === 1) {
+        const { data: pricing } = await admin.from('pricing_config').select('referral_credit_amount').limit(1).single()
+        const amount = Number(pricing?.referral_credit_amount ?? 0)
+
+        if (amount > 0) {
+          const { data: referrerProfile } = await admin.from('profiles').select('account_credit').eq('id', referral.referrer_id).single()
+          await admin.from('profiles').update({ account_credit: Number(referrerProfile?.account_credit ?? 0) + amount }).eq('id', referral.referrer_id)
+
+          const { data: referredProfile } = await admin.from('profiles').select('account_credit').eq('id', referral.referred_id).single()
+          await admin.from('profiles').update({ account_credit: Number(referredProfile?.account_credit ?? 0) + amount }).eq('id', referral.referred_id)
+        }
+
+        await admin.from('referrals').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', referral.id)
+      }
+    }
+  } catch (referralError) {
+    console.error('Referral payout failed', referralError)
+  }
 
   return jsonResponse({ job: updated })
 })

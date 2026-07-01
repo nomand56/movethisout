@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Plus, Package } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { StatusBadge } from '../../components/ui/Badge'
@@ -10,6 +11,7 @@ import type { Job } from '../../types'
 import { format } from 'date-fns'
 
 export default function RequesterDashboard() {
+  const { t } = useTranslation()
   const { profile } = useAuthStore()
 
   const { data: jobs, isLoading } = useQuery({
@@ -30,11 +32,11 @@ export default function RequesterDashboard() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">My Moves</h1>
-          <p className="text-sm text-gray-500">Welcome back, {profile?.full_name?.split(' ')[0]}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
+          <p className="text-sm text-gray-500">{t('dashboard.welcome_back')} {profile?.full_name?.split(' ')[0]}</p>
         </div>
         <Link to="/app/jobs/new">
-          <Button size="sm"><Plus size={16} className="mr-1" />New Move</Button>
+          <Button size="sm"><Plus size={16} className="mr-1" />{t('dashboard.new_move')}</Button>
         </Link>
       </div>
 
@@ -45,9 +47,9 @@ export default function RequesterDashboard() {
       {!isLoading && (!jobs || jobs.length === 0) && (
         <div className="text-center py-16">
           <Package size={48} className="mx-auto text-gray-300 dark:text-gray-700 mb-4" />
-          <p className="text-gray-500 mb-4">No moves yet</p>
+          <p className="text-gray-500 mb-4">{t('dashboard.empty_state')}</p>
           <Link to="/app/jobs/new">
-            <Button>Book your first move</Button>
+            <Button>{t('dashboard.book_first_move')}</Button>
           </Link>
         </div>
       )}

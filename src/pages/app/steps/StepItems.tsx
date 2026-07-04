@@ -56,7 +56,7 @@ export default function StepItems({ onBack, onNext }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl uppercase">What&apos;s moving?</h2>
+        <h2 className="text-xl font-bold text-ink">What&apos;s moving?</h2>
         <Button size="sm" variant="secondary" onClick={openAdd}><Plus size={16} className="mr-1" />Add</Button>
       </div>
 
@@ -91,7 +91,7 @@ export default function StepItems({ onBack, onNext }: Props) {
 
       <div className="flex gap-3">
         <Button variant="secondary" fullWidth onClick={onBack}>Back</Button>
-        <Button fullWidth disabled={store.items.length === 0} onClick={onNext}>Continue ▸</Button>
+        <Button fullWidth disabled={store.items.length === 0} onClick={onNext}>Continue</Button>
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? 'Edit item' : 'Add item'}>

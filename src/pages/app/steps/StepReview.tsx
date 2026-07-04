@@ -104,7 +104,7 @@ export default function StepReview({ onBack, onConfirm, confirmLabel, guestMode,
 
   return (
     <div className="flex flex-col gap-5">
-      <h2 className="font-display text-2xl uppercase">Your quote</h2>
+      <h2 className="text-xl font-bold text-ink">Your quote</h2>
 
       <div className="card-yard overflow-hidden">
         <div className="p-4 border-b-3 border-jet">
@@ -199,7 +199,7 @@ export default function StepReview({ onBack, onConfirm, confirmLabel, guestMode,
           disabled={guestMode ? false : !q || loading}
           onClick={handleConfirm}
         >
-          {confirmLabel ?? (guestMode ? 'Sign in to book ▸' : 'Continue ▸')}
+          {confirmLabel ?? (guestMode ? 'Sign in to book' : 'Continue')}
         </Button>
       </div>
     </div>

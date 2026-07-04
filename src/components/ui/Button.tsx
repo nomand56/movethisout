@@ -11,20 +11,20 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', size = 'md', loading, fullWidth, className, children, disabled, ...props }, ref) => {
     const base =
-      'inline-flex items-center justify-center font-sans font-extrabold uppercase tracking-wide border-3 border-jet transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-haul disabled:opacity-50 disabled:pointer-events-none'
+      'inline-flex items-center justify-center font-semibold rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-50 disabled:pointer-events-none'
 
     const variants = {
-      primary: 'bg-haul text-white shadow-hard hover:bg-haul-hot active:translate-x-px active:translate-y-px active:shadow-none',
-      secondary: 'bg-white text-jet hover:bg-concrete',
-      deal: 'bg-caution text-jet shadow-hard hover:brightness-105',
-      danger: 'bg-red-600 text-white border-red-800',
-      ghost: 'border-transparent text-jet hover:bg-concrete shadow-none',
+      primary: 'bg-accent text-white shadow-sm hover:bg-accent-hover active:scale-[0.98]',
+      secondary: 'bg-white text-ink border border-gray-200 hover:bg-gray-50',
+      deal: 'bg-amber-400 text-ink hover:bg-amber-300',
+      danger: 'bg-red-600 text-white hover:bg-red-700',
+      ghost: 'text-ink-muted hover:bg-gray-100',
     }
 
     const sizes = {
-      sm: 'text-sm px-3 py-2 min-h-[40px]',
-      md: 'text-base px-4 py-3 min-h-[48px]',
-      lg: 'text-lg px-6 py-4 min-h-[56px]',
+      sm: 'text-sm px-3.5 py-2 min-h-[40px]',
+      md: 'text-[15px] px-4 py-3 min-h-[48px]',
+      lg: 'text-base px-5 py-3.5 min-h-[52px]',
     }
 
     return (

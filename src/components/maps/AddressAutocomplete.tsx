@@ -43,14 +43,14 @@ export default function AddressAutocomplete({ label, placeholder, error, onPlace
   }
 
   const inputClass = clsx(
-    'w-full border-3 px-4 py-3 text-base bg-white text-jet placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-haul min-h-[48px]',
-    error ? 'border-red-600' : 'border-jet',
+    'w-full rounded-xl border px-4 py-3 text-[15px] bg-white text-ink placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent/25 focus:border-accent min-h-[48px]',
+    error ? 'border-red-400' : 'border-gray-200',
   )
 
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label className="text-sm font-condensed font-bold uppercase tracking-wider text-jet">{label}</label>
+        <label className="text-sm font-medium text-gray-700">{label}</label>
       )}
       {ready ? (
         <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged} options={AUTOCOMPLETE_OPTIONS}>

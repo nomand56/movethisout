@@ -4,6 +4,7 @@ import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
 import { useJobCreationStore } from '../../store/jobCreationStore'
 import { useAuthStore } from '../../store/authStore'
 import { supabase, getFunctionErrorMessage, getPostgrestErrorMessage } from '../../lib/supabase'
+import MapBookingShell from '../../components/booking/MapBookingShell'
 import StepAddresses from './steps/StepAddresses'
 import StepSchedule from './steps/StepSchedule'
 import StepItems from './steps/StepItems'
@@ -17,7 +18,7 @@ import { markFirstActionCompleted } from '../../components/pwa/InstallPrompt'
 
 interface Props { authRequired: boolean }
 
-const STEPS = ['Addresses', 'Schedule', 'Items', 'Review', 'Confirm']
+const STEP_LABELS = ['Route', 'When', 'Items', 'Price', 'Book']
 
 export default function BookingWizardShell({ authRequired }: Props) {
   const [step, setStep] = useState(0)
@@ -30,8 +31,18 @@ export default function BookingWizardShell({ authRequired }: Props) {
   const store = useJobCreationStore()
 
   const isGuest = !authRequired && !profile
-
   const { isLoaded } = useGoogleMapsLoader()
+
+  const pickupPin = store.pickup_lat
+    ? { lat: store.pickup_lat, lng: store.pickup_lng!, label: 'Pickup' }
+    : null
+  const dropoffPin = store.dropoff_lat
+    ? { lat: store.dropoff_lat, lng: store.dropoff_lng!, label: 'Drop-off' }
+    : null
+
+  useEffect(() => {
+    if (store.pickup_lat && store.dropoff_lat && step === 0) setStep(1)
+  }, [store.pickup_lat, store.dropoff_lat, step])
 
   const fetchQuote = async (): Promise<boolean> => {
     try {
@@ -155,13 +166,10 @@ export default function BookingWizardShell({ authRequired }: Props) {
     setStep(4)
   }
 
-  // After sign-in: fetch price → confirm step
   useEffect(() => {
     if (step !== 5 || !profile) return
-
     let cancelled = false
     setAuthLoading(true)
-
     const afterAuth = async () => {
       if (!store.quote) await fetchQuote()
       if (!cancelled) {
@@ -170,17 +178,16 @@ export default function BookingWizardShell({ authRequired }: Props) {
       }
     }
     afterAuth()
-
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, step])
 
   if (authRequired && session && !session.user.email_confirmed_at) {
     return (
-      <div className="card-yard p-6 text-center bg-concrete">
-        <h2 className="font-display text-xl uppercase mb-2">Verify email first</h2>
-        <p className="text-sm text-gray-600 mb-4">Check your inbox before booking.</p>
-        <a href="/verify-email" className="text-haul font-bold text-sm hover:underline">Resend link ▸</a>
+      <div className="card p-6 text-center">
+        <h2 className="text-xl font-bold mb-2">Verify email first</h2>
+        <p className="text-sm text-ink-muted mb-4">Check your inbox before booking.</p>
+        <a href="/verify-email" className="text-accent font-semibold text-sm hover:underline">Resend link</a>
       </div>
     )
   }
@@ -196,58 +203,40 @@ export default function BookingWizardShell({ authRequired }: Props) {
   const progressStep = step === 5 ? 3 : step
 
   return (
-    <>
-      {!authRequired && (
-        <div className="bg-haul text-white px-4 py-6 -mx-4 -mt-5 mb-2 border-b-3 border-jet">
-          <p className="font-display text-2xl uppercase [text-shadow:2px_2px_0_#141414]">MoveThisOut ▸</p>
-          <p className="font-condensed font-bold text-jet text-sm uppercase tracking-wide">Get your price in 2 minutes</p>
+    <MapBookingShell
+      step={progressStep}
+      stepLabels={STEP_LABELS}
+      pickup={pickupPin}
+      dropoff={dropoffPin}
+      backHref={authRequired ? '/app/dashboard' : '/'}
+    >
+      {step === 0 && <StepAddresses onNext={() => setStep(1)} />}
+      {step === 1 && <StepSchedule onBack={() => setStep(0)} onNext={() => setStep(2)} />}
+      {step === 2 && <StepItems onBack={() => setStep(1)} onNext={() => setStep(3)} />}
+      {step === 3 && (
+        <StepReview
+          guestMode={isGuest}
+          onBack={() => setStep(2)}
+          onConfirm={handleReviewConfirm}
+          confirmLabel={isGuest ? 'Sign in to book' : 'Continue to confirm'}
+          bookingError={draftError}
+        />
+      )}
+      {step === 4 && profile && (
+        <StepPayment
+          onBack={() => setStep(3)}
+          loading={confirming}
+          error={confirmError}
+          onConfirm={handleConfirmBooking}
+        />
+      )}
+      {step === 5 && !authLoading && <StepAuth onBack={() => setStep(3)} />}
+      {step === 5 && authLoading && (
+        <div className="flex flex-col items-center gap-3 py-12">
+          <Spinner className="h-10 w-10" />
+          <p className="font-medium text-ink-muted">Getting your price…</p>
         </div>
       )}
-      <div className="flex flex-col gap-5 pb-4">
-        <div>
-          <h1 className="font-display text-3xl uppercase">Book it</h1>
-          <div className="flex gap-1 mt-3 border-3 border-jet">
-            {STEPS.map((s, i) => (
-              <div
-                key={s}
-                className={`flex-1 py-2 text-center font-condensed font-bold text-[10px] uppercase tracking-wider border-r-3 border-jet last:border-r-0 ${
-                  i <= progressStep ? 'bg-haul text-white' : 'bg-white text-gray-400'
-                }`}
-              >
-                {s}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {step === 0 && <StepAddresses onNext={() => setStep(1)} />}
-        {step === 1 && <StepSchedule onBack={() => setStep(0)} onNext={() => setStep(2)} />}
-        {step === 2 && <StepItems onBack={() => setStep(1)} onNext={() => setStep(3)} />}
-        {step === 3 && (
-          <StepReview
-            guestMode={isGuest}
-            onBack={() => setStep(2)}
-            onConfirm={handleReviewConfirm}
-            confirmLabel={isGuest ? 'Sign in to book ▸' : 'Continue to confirm ▸'}
-            bookingError={draftError}
-          />
-        )}
-        {step === 4 && profile && (
-          <StepPayment
-            onBack={() => setStep(3)}
-            loading={confirming}
-            error={confirmError}
-            onConfirm={handleConfirmBooking}
-          />
-        )}
-        {step === 5 && !authLoading && <StepAuth onBack={() => setStep(3)} />}
-        {step === 5 && authLoading && (
-          <div className="flex flex-col items-center gap-3 py-16">
-            <Spinner className="h-10 w-10" />
-            <p className="font-condensed font-bold uppercase tracking-wider text-gray-600">Getting your price…</p>
-          </div>
-        )}
-      </div>
-    </>
+    </MapBookingShell>
   )
 }

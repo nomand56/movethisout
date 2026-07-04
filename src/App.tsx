@@ -21,6 +21,8 @@ import LandingPage from './pages/public/LandingPage'
 
 // Auth pages
 import LoginPage from './pages/auth/LoginPage'
+import MoverLoginPage from './pages/auth/MoverLoginPage'
+import AdminLoginPage from './pages/auth/AdminLoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import VerifyEmailPage from './pages/auth/VerifyEmailPage'
 import AuthCallbackPage from './pages/auth/AuthCallbackPage'
@@ -100,15 +102,13 @@ export default function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/mover/login" element={<MoverLoginPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/welcome" element={<ChooseRoleInterstitial />} />
-          <Route path="/book" element={
-            <div className="min-h-screen bg-white max-w-lg mx-auto px-4 py-5">
-              <BookingWizardShell authRequired={false} />
-            </div>
-          } />
+          <Route path="/book" element={<BookingWizardShell authRequired={false} />} />
 
           {/* Requester */}
           <Route element={<ProtectedRoute role="requester" />}>

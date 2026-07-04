@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Map, List } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
+import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
+import JobsMap from '../../components/maps/JobsMap'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import { format } from 'date-fns'
-import type { Job, ItemSize } from '../../types'
+import type { Job } from '../../types'
 import { vehicleCanHandleJob } from '../../lib/vehicleSize'
+import { SERVICE_AREA_LABEL } from '../../lib/serviceArea'
 
 const TIME_LABELS = { morning: '8am–12pm', afternoon: '12pm–5pm', evening: '5pm–8pm' }
 
@@ -25,10 +29,48 @@ function sizeBreakdown(items: Job['items']) {
   return Object.entries(counts).map(([s, n]) => `${n} ${s.replace('_', ' ')}`).join(', ')
 }
 
+function JobCard({ job, compact }: { job: Job; compact?: boolean }) {
+  return (
+    <Link
+      to={`/mover/jobs/${job.id}`}
+      className={`card block overflow-hidden hover:shadow-md transition-shadow ${compact ? '' : ''}`}
+    >
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <p className="font-semibold text-ink">
+              {suburb(job.pickup_address)} → {suburb(job.dropoff_address)}
+            </p>
+            <p className="text-xs text-ink-muted mt-0.5">
+              {format(new Date(job.scheduled_date), 'dd MMM')} · {TIME_LABELS[job.time_window]}
+              {job.distance_km ? ` · ${job.distance_km} km` : ''}
+            </p>
+          </div>
+          <span className="text-xs font-semibold bg-accent-soft text-accent px-2 py-1 rounded-lg">Open</span>
+        </div>
+        {sizeBreakdown(job.items) && (
+          <p className="text-xs text-ink-muted mb-2">{sizeBreakdown(job.items)}</p>
+        )}
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-2xl font-bold text-accent">${job.mover_payout?.toFixed(0) ?? '—'}</p>
+            <p className="text-[10px] text-ink-muted font-medium">You keep</p>
+          </div>
+          <span className="text-sm font-semibold text-accent">View →</span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
 export default function RequestCenterPage() {
   const { profile } = useAuthStore()
   const qc = useQueryClient()
+  const [view, setView] = useState<'map' | 'list'>('map')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [filter, setFilter] = useState({ date: '', minKm: '', maxKm: '', vehicleOnly: true })
+
+  const { isLoaded } = useGoogleMapsLoader()
 
   const { data: moverProfile } = useQuery({
     queryKey: ['mover-profile-self', profile?.id],
@@ -73,72 +115,113 @@ export default function RequestCenterPage() {
     return true
   })
 
+  const selectedJob = filtered.find((j) => j.id === selectedId)
+
   if (!moverProfile?.is_online) {
     return (
-      <div className="card-yard p-8 text-center bg-concrete">
-        <p className="font-display text-xl uppercase mb-2">You&apos;re offline</p>
-        <p className="text-sm text-gray-600 mb-4">Go online from Home to see available jobs.</p>
-        <Link to="/mover/dashboard"><Button>Go online ▸</Button></Link>
+      <div className="card p-8 text-center">
+        <p className="text-xl font-bold mb-2">You&apos;re offline</p>
+        <p className="text-sm text-ink-muted mb-4">Go online from Home to see jobs on the map.</p>
+        <Link to="/mover/dashboard"><Button>Go online</Button></Link>
       </div>
     )
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-display text-3xl uppercase">Available jobs</h1>
+  if (!isLoaded) {
+    return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>
+  }
 
-      <div className="flex gap-2 flex-wrap">
-        <input type="date" value={filter.date} onChange={(e) => setFilter((f) => ({ ...f, date: e.target.value }))}
-          className="border-3 border-jet px-3 py-2 text-sm bg-white font-condensed font-bold uppercase" />
-        <input type="number" placeholder="Min km" value={filter.minKm} onChange={(e) => setFilter((f) => ({ ...f, minKm: e.target.value }))}
-          className="w-20 border-3 border-jet px-3 py-2 text-sm bg-white" />
-        <input type="number" placeholder="Max km" value={filter.maxKm} onChange={(e) => setFilter((f) => ({ ...f, maxKm: e.target.value }))}
-          className="w-20 border-3 border-jet px-3 py-2 text-sm bg-white" />
-        <label className="flex items-center gap-2 text-sm font-condensed font-bold uppercase">
-          <input type="checkbox" checked={filter.vehicleOnly} onChange={(e) => setFilter((f) => ({ ...f, vehicleOnly: e.target.checked }))} />
-          My vehicle only
+  return (
+    <div className="flex flex-col gap-4 -mx-4 -mt-2">
+      <div className="px-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-ink">Available jobs</h1>
+          <p className="text-xs text-ink-muted">{SERVICE_AREA_LABEL}</p>
+        </div>
+        <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setView('map')}
+            className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'map' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
+          >
+            <Map size={16} /> Map
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('list')}
+            className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'list' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
+          >
+            <List size={16} /> List
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 flex gap-2 flex-wrap">
+        <input
+          type="date"
+          value={filter.date}
+          onChange={(e) => setFilter((f) => ({ ...f, date: e.target.value }))}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white"
+        />
+        <input
+          type="number"
+          placeholder="Min km"
+          value={filter.minKm}
+          onChange={(e) => setFilter((f) => ({ ...f, minKm: e.target.value }))}
+          className="w-20 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white"
+        />
+        <input
+          type="number"
+          placeholder="Max km"
+          value={filter.maxKm}
+          onChange={(e) => setFilter((f) => ({ ...f, maxKm: e.target.value }))}
+          className="w-20 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white"
+        />
+        <label className="flex items-center gap-2 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            checked={filter.vehicleOnly}
+            onChange={(e) => setFilter((f) => ({ ...f, vehicleOnly: e.target.checked }))}
+            className="rounded"
+          />
+          My vehicle
         </label>
       </div>
 
       {isLoading && <div className="flex justify-center py-12"><Spinner className="h-8 w-8" /></div>}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="card-yard p-8 text-center text-gray-500">No jobs right now. Stay online.</div>
+        <div className="card mx-4 p-8 text-center text-ink-muted">No jobs right now. Stay online.</div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {filtered.map((job) => (
-          <Link key={job.id} to={`/mover/jobs/${job.id}`} className="card-yard block overflow-hidden hover:shadow-hard transition-shadow">
-            <div className="bg-jet text-white px-4 py-2 flex justify-between items-center">
-              <span className="font-condensed font-bold text-sm uppercase tracking-widest">
-                {job.distance_km ? `${job.distance_km} km` : '— km'}
-              </span>
-              <span className="border-2 border-haul bg-haul px-2 py-0.5 font-condensed font-bold text-[10px] uppercase">Live</span>
-            </div>
-            <div className="p-4">
-              <h4 className="font-display text-lg uppercase mb-1">
-                {job.items?.length ? `${job.items.reduce((s, i) => s + i.quantity, 0)} items` : 'Move job'}
-              </h4>
-              <p className="font-condensed font-semibold text-sm uppercase tracking-wide text-gray-700">
-                {suburb(job.pickup_address)} ▸ {suburb(job.dropoff_address)}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {format(new Date(job.scheduled_date), 'dd MMM')} · {TIME_LABELS[job.time_window]}
-                {sizeBreakdown(job.items) ? ` · ${sizeBreakdown(job.items)}` : ''}
-              </p>
-              <div className="mt-3 flex items-end justify-between">
-                <div>
-                  <p className="price-hero text-4xl text-haul">${job.mover_payout?.toFixed(0) ?? '—'}</p>
-                  <p className="font-condensed font-bold text-[10px] uppercase tracking-widest text-gray-500">You keep</p>
-                </div>
-                <span className="btn-like font-sans font-extrabold text-sm uppercase bg-haul text-white border-3 border-jet px-4 py-2 shadow-hard-sm">
-                  View ▸
-                </span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {view === 'map' && !isLoading && filtered.length > 0 && (
+        <div className="px-4 flex flex-col gap-3">
+          <div className="h-56 sm:h-64">
+            <JobsMap
+              jobs={filtered}
+              selectedId={selectedId}
+              onSelect={(job) => setSelectedId(job?.id ?? null)}
+              className="w-full h-full"
+            />
+          </div>
+          {selectedJob ? (
+            <JobCard job={selectedJob} compact />
+          ) : (
+            <p className="text-center text-sm text-ink-muted py-2">Tap a pin to see job details</p>
+          )}
+          {filtered.length > 1 && !selectedJob && (
+            <p className="text-xs text-center text-ink-muted">{filtered.length} jobs on map</p>
+          )}
+        </div>
+      )}
+
+      {view === 'list' && !isLoading && (
+        <div className="px-4 flex flex-col gap-3 pb-4">
+          {filtered.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

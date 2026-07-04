@@ -53,8 +53,8 @@ export default function StepAddresses({ onNext }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <h2 className="font-display text-2xl uppercase">Where from &amp; to?</h2>
+    <div className="flex flex-col gap-4">
+      <h2 className="text-xl font-bold text-ink">Your route</h2>
 
       {saved && saved.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -118,7 +118,7 @@ export default function StepAddresses({ onNext }: Props) {
           onChange={(e) => store.setNotes(e.target.value)}
         />
       </div>
-      <Button fullWidth onClick={() => validate() && onNext()}>Continue ▸</Button>
+      <Button fullWidth onClick={() => validate() && onNext()}>Continue</Button>
     </div>
   )
 }

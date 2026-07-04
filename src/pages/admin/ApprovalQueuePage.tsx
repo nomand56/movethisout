@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, getFunctionErrorMessage } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/authStore'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import Modal from '../../components/ui/Modal'
@@ -10,6 +11,7 @@ import { CheckCircle, XCircle, FileText } from 'lucide-react'
 
 export default function ApprovalQueuePage() {
   const qc = useQueryClient()
+  const { profile } = useAuthStore()
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
 
@@ -28,7 +30,13 @@ export default function ApprovalQueuePage() {
   const actionMutation = useMutation({
     mutationFn: async ({ mover_id, action, reason }: { mover_id: string; action: 'approve' | 'reject'; reason?: string }) => {
       const res = await supabase.functions.invoke('approve-mover', { body: { mover_id, action, reason } })
-      if (res.error) throw new Error(await getFunctionErrorMessage(res.error))
+      if (!res.error && !res.data?.error) return
+
+      if (profile?.role !== 'admin') throw new Error(res.data?.error ?? 'Could not update mover')
+
+      const newStatus = action === 'approve' ? 'active' : 'suspended'
+      const { error } = await supabase.from('mover_profiles').update({ status: newStatus }).eq('id', mover_id)
+      if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pending-movers'] })

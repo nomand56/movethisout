@@ -51,6 +51,7 @@ import AdminUsersPage from './pages/admin/UsersPage'
 import RevenuePage from './pages/admin/RevenuePage'
 import AdminPricingPage from './pages/admin/PricingPage'
 import MoverRouteGuard from './components/auth/MoverRouteGuard'
+import GuestBookingLayout from './components/layout/GuestBookingLayout'
 import InstallPrompt from './components/pwa/InstallPrompt'
 
 function RootRedirect() {
@@ -108,7 +109,9 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/welcome" element={<ChooseRoleInterstitial />} />
-          <Route path="/book" element={<BookingWizardShell authRequired={false} />} />
+          <Route element={<GuestBookingLayout />}>
+            <Route path="/book" element={<BookingWizardShell authRequired={false} />} />
+          </Route>
 
           {/* Requester */}
           <Route element={<ProtectedRoute role="requester" />}>

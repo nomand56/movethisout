@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
 import { useJobCreationStore } from '../../store/jobCreationStore'
 import { useAuthStore } from '../../store/authStore'
-import { supabase, getFunctionErrorMessage, getPostgrestErrorMessage } from '../../lib/supabase'
+import { supabase, getPostgrestErrorMessage } from '../../lib/supabase'
+import { calculateQuote } from '../../lib/calculateQuote'
 import MapBookingShell from '../../components/booking/MapBookingShell'
 import StepAddresses from './steps/StepAddresses'
 import StepSchedule from './steps/StepSchedule'
@@ -46,22 +47,19 @@ export default function BookingWizardShell({ authRequired }: Props) {
 
   const fetchQuote = async (): Promise<boolean> => {
     try {
-      const res = await supabase.functions.invoke('calculate-price', {
-        body: {
-          pickup_lat: store.pickup_lat,
-          pickup_lng: store.pickup_lng,
-          dropoff_lat: store.dropoff_lat,
-          dropoff_lng: store.dropoff_lng,
-          items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
-          scheduled_date: store.scheduled_date,
-          time_window: store.time_window,
-          apply_credit: true,
-          promo_code: store.promo_code || undefined,
-        },
+      const quote = await calculateQuote({
+        pickup_lat: store.pickup_lat!,
+        pickup_lng: store.pickup_lng!,
+        dropoff_lat: store.dropoff_lat!,
+        dropoff_lng: store.dropoff_lng!,
+        items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
+        scheduled_date: store.scheduled_date,
+        time_window: store.time_window as 'morning' | 'afternoon' | 'evening',
+        apply_credit: true,
+        promo_code: store.promo_code || undefined,
+        userId: profile?.id,
       })
-      if (res.error) throw new Error(await getFunctionErrorMessage(res.error))
-      if (res.data?.error) throw new Error(res.data.error as string)
-      store.setQuote(res.data)
+      store.setQuote(quote)
       return true
     } catch {
       return false
@@ -208,7 +206,6 @@ export default function BookingWizardShell({ authRequired }: Props) {
       stepLabels={STEP_LABELS}
       pickup={pickupPin}
       dropoff={dropoffPin}
-      backHref={authRequired ? '/app/dashboard' : '/'}
     >
       {step === 0 && <StepAddresses onNext={() => setStep(1)} />}
       {step === 1 && <StepSchedule onBack={() => setStep(0)} onNext={() => setStep(2)} />}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { publishDraftJob } from '../../lib/confirmBooking'
@@ -25,6 +25,7 @@ const TIME_LABELS = { morning: '8am – 12pm', afternoon: '12pm – 5pm', evenin
 
 export default function RequesterJobDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { profile } = useAuthStore()
   const qc = useQueryClient()
   const [moverPos, setMoverPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -144,7 +145,12 @@ export default function RequesterJobDetail() {
       return
     }
     requestPushPermission()
-    qc.invalidateQueries({ queryKey: ['job', id] })
+    if (result.job.id !== id) {
+      navigate(`/app/jobs/${result.job.id}`, { replace: true })
+    } else {
+      qc.invalidateQueries({ queryKey: ['job', id] })
+    }
+    qc.invalidateQueries({ queryKey: ['jobs'] })
   }
 
   return (

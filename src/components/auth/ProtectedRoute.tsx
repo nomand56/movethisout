@@ -7,6 +7,12 @@ interface Props {
   role: UserRole
 }
 
+function loginPathFor(role: UserRole): string {
+  if (role === 'admin') return '/admin/login'
+  if (role === 'mover') return '/mover/login'
+  return '/login'
+}
+
 export default function ProtectedRoute({ role }: Props) {
   const { profile, session, loading } = useAuthStore()
 
@@ -18,7 +24,7 @@ export default function ProtectedRoute({ role }: Props) {
     )
   }
 
-  if (!profile) return <Navigate to="/login" replace />
+  if (!profile) return <Navigate to={loginPathFor(role)} replace />
 
   if (session && !session.user.email_confirmed_at) {
     return <Navigate to="/verify-email" replace />

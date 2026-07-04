@@ -33,7 +33,11 @@ export default function LoginForm({ title, subtitle, registerHref, registerLabel
     setServerError('')
     const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
     if (error) {
-      setServerError('Invalid email or password.')
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        setServerError('Confirm your email first, or run scripts/full-setup.sql in Supabase to verify the admin account.')
+      } else {
+        setServerError('Invalid email or password.')
+      }
       return
     }
     navigate(afterLoginPath)

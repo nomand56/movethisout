@@ -4,47 +4,60 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { useWakeLock } from '../../hooks/useWakeLock'
-import { queueGpsEvent, flushGpsQueue } from '../../hooks/useGpsQueue'
+import { queueGpsEvent } from '../../hooks/useGpsQueue'
 import { useGpsQueueFlush } from '../../hooks/useGpsQueueFlush'
+import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
+import MoverDrivingMap from '../../components/maps/MoverDrivingMap'
+import { googleMapsNavigateToAddress } from '../../lib/mapsLinks'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import SignaturePad from '../../components/signature/SignaturePad'
 import ChatPanel from '../../components/chat/ChatPanel'
-import { Navigation, CheckCircle, Camera, PenLine, MessageCircle } from 'lucide-react'
+import {
+  Navigation,
+  MapPin,
+  MessageCircle,
+  Camera,
+  PenLine,
+  Truck,
+  ChevronUp,
+  Radio,
+} from 'lucide-react'
 import type { Job } from '../../types'
 
-type Step = 'navigate_pickup' | 'confirm_arrival' | 'loading' | 'navigate_dropoff' | 'delivery' | 'complete'
+/** Mover delivery stages (inDrive / Talabat style) */
+type Stage = 'to_pickup' | 'at_pickup' | 'to_dropoff' | 'finish'
 
-const STEP_ORDER: Step[] = ['navigate_pickup', 'confirm_arrival', 'loading', 'navigate_dropoff', 'delivery', 'complete']
-
-const STEP_LABELS: Record<Step, string> = {
-  navigate_pickup: 'Navigate to Pickup',
-  confirm_arrival: 'Confirm Arrival at Pickup',
-  loading: 'Confirm Loading Complete',
-  navigate_dropoff: 'Navigate to Drop-off',
-  delivery: 'Confirm Delivery',
-  complete: 'Complete Job',
+const STAGE_LABELS: Record<Stage, string> = {
+  to_pickup: 'Drive to pickup',
+  at_pickup: 'Load items',
+  to_dropoff: 'Drive to drop-off',
+  finish: 'Complete delivery',
 }
 
-function stepFromJob(job: Job): Step {
-  if (job.status === 'claimed') return 'navigate_pickup'
-  if (job.status === 'in_progress') return 'navigate_dropoff'
-  return 'navigate_pickup'
-}
+const PROGRESS = ['Pickup', 'Load', 'Drop-off', 'Done']
 
 export default function ActiveJobPage() {
   const { profile } = useAuthStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { request: requestWakeLock, release: releaseWakeLock } = useWakeLock()
+  const { isLoaded: mapsLoaded } = useGoogleMapsLoader()
+
   const watchIdRef = useRef<number | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const lastEmitRef = useRef(0)
-  const [currentStep, setCurrentStep] = useState<Step>('navigate_pickup')
-  const [photo, setPhoto] = useState<File | null>(null)
+
+  const [stage, setStage] = useState<Stage>('to_pickup')
+  const [driving, setDriving] = useState(false)
+  const [moverPos, setMoverPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [eta, setEta] = useState<string | null>(null)
+  const [routeDistance, setRouteDistance] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(true)
   const [photoPath, setPhotoPath] = useState<string | null>(null)
   const [signaturePath, setSignaturePath] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['mover-active-job-full', profile?.id],
@@ -58,11 +71,22 @@ export default function ActiveJobPage() {
       return data as Job | null
     },
     enabled: !!profile,
+    refetchInterval: 20_000,
   })
 
   useEffect(() => {
-    if (job) setCurrentStep(stepFromJob(job))
-  }, [job?.id, job?.status])
+    if (!job) return
+    if (job.status === 'in_progress' && stage === 'to_pickup') {
+      setStage('at_pickup')
+      setDriving(true)
+    }
+  }, [job?.status, job?.id])
+
+  const mapDestination: 'pickup' | 'dropoff' =
+    stage === 'to_dropoff' || stage === 'finish' ? 'dropoff' : 'pickup'
+
+  const progressIndex =
+    stage === 'to_pickup' ? 0 : stage === 'at_pickup' ? 1 : stage === 'to_dropoff' ? 2 : 3
 
   const insertGps = useCallback(async (jobId: string, lat: number, lng: number) => {
     await supabase.from('location_events').insert({ job_id: jobId, lat, lng })
@@ -72,6 +96,10 @@ export default function ActiveJobPage() {
 
   const emitGps = useCallback(async (lat: number, lng: number) => {
     if (!job) return
+    setMoverPos({ lat, lng })
+
+    if (job.status !== 'in_progress') return
+
     const now = Date.now()
     if (now - lastEmitRef.current < 5000) return
     lastEmitRef.current = now
@@ -89,19 +117,16 @@ export default function ActiveJobPage() {
     }
   }, [job, insertGps])
 
-  const startGPS = useCallback(() => {
-    if (!job) return
-    channelRef.current = supabase.channel(`job-gps-${job.id}`)
-    channelRef.current.subscribe()
-
+  const startPositionWatch = useCallback(() => {
+    if (watchIdRef.current !== null) return
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => emitGps(pos.coords.latitude, pos.coords.longitude),
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000 },
     )
-  }, [job, emitGps])
+  }, [emitGps])
 
-  const stopGPS = useCallback(() => {
+  const stopPositionWatch = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current)
       watchIdRef.current = null
@@ -111,23 +136,38 @@ export default function ActiveJobPage() {
   }, [])
 
   useEffect(() => {
-    if (job?.status === 'in_progress') {
-      requestWakeLock()
-      startGPS()
-    }
-    return () => { stopGPS(); releaseWakeLock() }
-  }, [job?.status, startGPS, stopGPS, requestWakeLock, releaseWakeLock])
+    if (!job) return
+    channelRef.current = supabase.channel(`job-gps-${job.id}`)
+    channelRef.current.subscribe()
+    return () => { channelRef.current?.unsubscribe() }
+  }, [job?.id])
 
-  const updateStatus = useMutation({
-    mutationFn: async (status: 'in_progress') => {
-      await supabase.from('jobs').update({ status }).eq('id', job!.id)
-      await supabase.functions.invoke('notify-in-progress', { body: { job_id: job!.id } })
+  useEffect(() => {
+    if (driving) {
+      startPositionWatch()
+      requestWakeLock()
+    }
+    return () => {
+      if (!driving) releaseWakeLock()
+    }
+  }, [driving, startPositionWatch, requestWakeLock, releaseWakeLock])
+
+  useEffect(() => () => { stopPositionWatch(); releaseWakeLock() }, [stopPositionWatch, releaseWakeLock])
+
+  const startTrip = useMutation({
+    mutationFn: async () => {
+      await supabase.from('jobs').update({ status: 'in_progress' }).eq('id', job!.id)
+      try {
+        await supabase.functions.invoke('notify-in-progress', { body: { job_id: job!.id } })
+      } catch { /* optional */ }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['mover-active-job-full', profile?.id] }),
+    onSuccess: () => {
+      setStage('at_pickup')
+      qc.invalidateQueries({ queryKey: ['mover-active-job-full', profile?.id] })
+    },
   })
 
   const handlePhotoChange = async (file: File) => {
-    setPhoto(file)
     const path = `${profile!.id}/${job!.id}_completion.${file.name.split('.').pop()}`
     const { data } = await supabase.storage.from('completion-photos').upload(path, file, { upsert: true })
     if (data) setPhotoPath(data.path)
@@ -146,147 +186,195 @@ export default function ActiveJobPage() {
     const res = await supabase.functions.invoke('complete-job', {
       body: { job_id: job.id, completion_photo_url: photoPath, signature_url: signaturePath },
     })
+    if (res.error || res.data?.error) {
+      await supabase
+        .from('jobs')
+        .update({ status: 'completed', completion_photo_url: photoPath, signature_url: signaturePath })
+        .eq('id', job.id)
+        .eq('mover_id', profile!.id)
+    }
     setCompleting(false)
-    if (!res.error) {
-      stopGPS()
-      releaseWakeLock()
-      qc.invalidateQueries()
-      navigate('/mover/dashboard')
-    }
+    stopPositionWatch()
+    releaseWakeLock()
+    qc.invalidateQueries()
+    navigate('/mover/dashboard')
   }
 
-  const advanceStep = async () => {
-    const idx = STEP_ORDER.indexOf(currentStep)
-    if (currentStep === 'confirm_arrival' && job) {
-      await updateStatus.mutateAsync('in_progress')
-    }
-    if (currentStep === 'complete') {
-      await completeJob()
-      return
-    }
-    setCurrentStep(STEP_ORDER[idx + 1])
+  const handleStartDriving = () => {
+    setDriving(true)
+    setStage('to_pickup')
+    startPositionWatch()
   }
 
-  const mapsLink = (address: string) =>
-    `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+  const navigateUrl = googleMapsNavigateToAddress(
+    mapDestination === 'pickup' ? job?.pickup_address ?? '' : job?.dropoff_address ?? '',
+  )
 
-  if (isLoading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>
+  if (isLoading || !mapsLoaded) {
+    return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>
+  }
 
   if (!job) {
     return (
-      <div className="text-center py-20">
-        <p className="text-gray-500 mb-4">No active job found.</p>
-        <Button onClick={() => navigate('/mover/jobs')}>Find a Job</Button>
+      <div className="text-center py-20 px-4">
+        <p className="text-ink-muted mb-4">No active job.</p>
+        <Button onClick={() => navigate('/mover/jobs')}>Find jobs</Button>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-xl uppercase text-jet">Active Job</h1>
-        {job.status === 'in_progress' && (
-          <p className="text-xs text-orange-500 font-medium mt-1 flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-            GPS broadcasting every 5s · Screen awake
-          </p>
-        )}
+    <div className="absolute inset-0 flex flex-col bg-surface-muted">
+      <div className="relative flex-1 min-h-0">
+        <MoverDrivingMap
+          pickupLat={job.pickup_lat}
+          pickupLng={job.pickup_lng}
+          dropoffLat={job.dropoff_lat}
+          dropoffLng={job.dropoff_lng}
+          destination={mapDestination}
+          moverPosition={driving ? moverPos : null}
+          className="absolute inset-0 w-full h-full"
+          onEtaChange={(e, d) => { setEta(e); setRouteDistance(d) }}
+        />
+
+        <div className="absolute top-3 left-3 right-3 flex flex-col gap-2 pointer-events-none">
+          <div className="flex gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 bg-mover text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
+              <Truck size={14} />
+              {STAGE_LABELS[stage]}
+            </span>
+            {driving && (
+              <span className="inline-flex items-center gap-1.5 bg-white/95 text-accent text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
+                <Radio size={12} className="animate-pulse" />
+                {job.status === 'in_progress' ? 'Live · customer can track' : 'En route'}
+              </span>
+            )}
+            {eta && (
+              <span className="inline-flex bg-white/95 text-ink text-xs font-medium px-3 py-1.5 rounded-full shadow-md">
+                {eta}{routeDistance ? ` · ${routeDistance}` : ''}
+              </span>
+            )}
+          </div>
+          <div className="self-start bg-white/95 rounded-xl px-3 py-2 shadow-md">
+            <p className="text-lg font-bold text-accent">${job.mover_payout?.toFixed(0) ?? '—'}</p>
+            <p className="text-[10px] text-ink-muted font-medium">You keep</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {STEP_ORDER.map((step, i) => {
-          const idx = STEP_ORDER.indexOf(currentStep)
-          const done = i < idx
-          const active = step === currentStep
-          return (
-            <div
-              key={step}
-              className={`rounded-2xl p-4 border transition ${
-                active
-                  ? 'border-brand-500 bg-caution'
-                  : done
-                  ? 'border-green-200 bg-green-50'
-                  : 'border-gray-100 bg-white opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {done ? (
-                    <CheckCircle size={18} className="text-green-500" />
-                  ) : (
-                    <div className={`h-5 w-5 rounded-full border-2 ${active ? 'border-brand-500' : 'border-gray-300'} flex items-center justify-center`}>
-                      {active && <div className="h-2 w-2 rounded-full bg-haul" />}
-                    </div>
-                  )}
-                  <span className={`text-sm font-medium ${active ? 'text-brand-700' : done ? 'text-green-700' : 'text-gray-400'}`}>
-                    {STEP_LABELS[step]}
-                  </span>
-                </div>
+      <div className={`shrink-0 bg-white rounded-t-3xl shadow-sheet border-t border-gray-100 ${sheetOpen ? 'max-h-[50%]' : 'max-h-12'}`}>
+        <button type="button" onClick={() => setSheetOpen((o) => !o)} className="w-full flex flex-col items-center pt-3 pb-1">
+          <div className="sheet-handle" />
+          <ChevronUp size={18} className={`text-ink-muted transition ${sheetOpen ? '' : 'rotate-180'}`} />
+        </button>
 
-                {active && (step === 'navigate_pickup' || step === 'navigate_dropoff') && (
-                  <a
-                    href={mapsLink(step === 'navigate_pickup' ? job.pickup_address : job.dropoff_address)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-xs text-haul font-medium"
-                  >
-                    <Navigation size={14} /> Open Maps
-                  </a>
-                )}
+        {sheetOpen && (
+          <div className="overflow-y-auto overscroll-contain px-4 pb-6 min-h-0">
+            <div className="flex gap-1 mb-4">
+              {PROGRESS.map((label, i) => (
+                <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`h-1.5 w-full rounded-full ${i <= progressIndex ? 'bg-accent' : 'bg-gray-200'}`} />
+                  <span className={`text-[10px] font-medium ${i <= progressIndex ? 'text-accent' : 'text-ink-muted'}`}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-start gap-2 mb-4">
+              <MapPin size={18} className="text-accent shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs text-ink-muted font-medium">
+                  {mapDestination === 'pickup' ? 'Pickup location' : 'Drop-off location'}
+                </p>
+                <p className="text-sm font-semibold text-ink leading-snug">
+                  {mapDestination === 'pickup' ? job.pickup_address : job.dropoff_address}
+                </p>
               </div>
+            </div>
 
-              {active && step === 'complete' && (
-                <div className="mt-4 flex flex-col gap-4">
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <Camera size={16} /> Delivery photo
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoChange(f) }}
-                      className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-caution file:text-brand-700"
-                    />
-                    {photo && <p className="text-xs text-green-600 mt-1">✓ Photo ready</p>}
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <PenLine size={16} /> Requester signature
-                    </label>
-                    <SignaturePad onSave={handleSignatureSave} />
-                    {signaturePath && <p className="text-xs text-green-600 mt-1">✓ Signature captured</p>}
-                  </div>
-                </div>
+            <div className="flex flex-col gap-2 mb-3">
+              <a href={navigateUrl} target="_blank" rel="noreferrer" className="block">
+                <Button fullWidth size="lg" variant="secondary" className="gap-2">
+                  <Navigation size={20} />
+                  Navigate
+                </Button>
+              </a>
+
+              {stage === 'to_pickup' && !driving && (
+                <Button fullWidth size="lg" onClick={handleStartDriving}>
+                  Start driving
+                </Button>
+              )}
+
+              {stage === 'to_pickup' && driving && (
+                <Button fullWidth size="lg" loading={startTrip.isPending} onClick={() => startTrip.mutate()}>
+                  I&apos;ve arrived at pickup
+                </Button>
+              )}
+
+              {stage === 'at_pickup' && (
+                <Button
+                  fullWidth
+                  size="lg"
+                  onClick={() => { setStage('to_dropoff'); setDriving(true) }}
+                >
+                  Items loaded — start driving to drop-off
+                </Button>
+              )}
+
+              {stage === 'to_dropoff' && (
+                <Button fullWidth size="lg" onClick={() => setStage('finish')}>
+                  I&apos;ve arrived at drop-off
+                </Button>
               )}
             </div>
-          )
-        })}
-      </div>
 
-      <div className="card-yard p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageCircle size={16} className="text-haul" />
-          <p className="text-sm font-medium text-jet">Messages</p>
-        </div>
-        <ChatPanel jobId={job.id} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
-      </div>
+            {(stage === 'finish' || stage === 'to_dropoff') && (
+              <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
+                <p className="text-sm font-semibold text-ink">Proof of delivery</p>
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-ink-muted mb-2">
+                    <Camera size={16} /> Photo
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoChange(f) }}
+                    className="text-sm w-full"
+                  />
+                  {photoPath && <p className="text-xs text-green-600 mt-1">Photo saved</p>}
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-ink-muted mb-2">
+                    <PenLine size={16} /> Signature
+                  </label>
+                  <SignaturePad onSave={handleSignatureSave} />
+                  {signaturePath && <p className="text-xs text-green-600 mt-1">Signature saved</p>}
+                </div>
+                {stage === 'finish' && (
+                  <Button fullWidth size="lg" loading={completing} disabled={!photoPath || !signaturePath} onClick={completeJob}>
+                    Complete job & get paid
+                  </Button>
+                )}
+              </div>
+            )}
 
-      {currentStep !== 'complete' ? (
-        <Button fullWidth size="lg" loading={updateStatus.isPending} onClick={advanceStep}>
-          {STEP_LABELS[STEP_ORDER[STEP_ORDER.indexOf(currentStep) + 1]] ? `Next: ${STEP_LABELS[STEP_ORDER[STEP_ORDER.indexOf(currentStep) + 1]]}` : 'Next'}
-        </Button>
-      ) : (
-        <Button
-          fullWidth
-          size="lg"
-          loading={completing}
-          disabled={!photoPath || !signaturePath}
-          onClick={completeJob}
-        >
-          Complete Job
-        </Button>
-      )}
+            <button
+              type="button"
+              onClick={() => setShowChat((c) => !c)}
+              className="mt-4 w-full flex items-center justify-center gap-2 text-sm font-medium text-accent py-2"
+            >
+              <MessageCircle size={16} />
+              {showChat ? 'Hide chat' : 'Message customer'}
+            </button>
+            {showChat && (
+              <div className="mt-2 border border-gray-100 rounded-xl p-3 max-h-36 overflow-y-auto">
+                <ChatPanel jobId={job.id} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

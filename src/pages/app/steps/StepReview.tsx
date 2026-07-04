@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useJobCreationStore } from '../../../store/jobCreationStore'
-import { supabase, getFunctionErrorMessage } from '../../../lib/supabase'
+import { supabase } from '../../../lib/supabase'
+import { calculateQuote } from '../../../lib/calculateQuote'
 import Button from '../../../components/ui/Button'
 import Spinner from '../../../components/ui/Spinner'
 import { format } from 'date-fns'
@@ -36,22 +37,19 @@ export default function StepReview({ onBack, onConfirm, confirmLabel, guestMode,
       setError('')
       const { data: { session } } = await supabase.auth.getSession()
       try {
-        const res = await supabase.functions.invoke('calculate-price', {
-          body: {
-            pickup_lat: store.pickup_lat,
-            pickup_lng: store.pickup_lng,
-            dropoff_lat: store.dropoff_lat,
-            dropoff_lng: store.dropoff_lng,
-            items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
-            scheduled_date: store.scheduled_date,
-            time_window: store.time_window,
-            apply_credit: !!session,
-            promo_code: store.promo_code || undefined,
-          },
+        const quote = await calculateQuote({
+          pickup_lat: store.pickup_lat!,
+          pickup_lng: store.pickup_lng!,
+          dropoff_lat: store.dropoff_lat!,
+          dropoff_lng: store.dropoff_lng!,
+          items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
+          scheduled_date: store.scheduled_date,
+          time_window: store.time_window as 'morning' | 'afternoon' | 'evening',
+          apply_credit: !!session,
+          promo_code: store.promo_code || undefined,
+          userId: session?.user?.id,
         })
-        if (res.error) throw new Error(await getFunctionErrorMessage(res.error))
-        if (res.data?.error) throw new Error(res.data.error as string)
-        store.setQuote(res.data)
+        store.setQuote(quote)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not calculate price. Check your addresses and try again.')
       }
@@ -67,24 +65,21 @@ export default function StepReview({ onBack, onConfirm, confirmLabel, guestMode,
     setPromoMsg('')
     const { data: { session } } = await supabase.auth.getSession()
     try {
-      const res = await supabase.functions.invoke('calculate-price', {
-        body: {
-          pickup_lat: store.pickup_lat,
-          pickup_lng: store.pickup_lng,
-          dropoff_lat: store.dropoff_lat,
-          dropoff_lng: store.dropoff_lng,
-          items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
-          scheduled_date: store.scheduled_date,
-          time_window: store.time_window,
-          apply_credit: !!session,
-          promo_code: store.promo_code.trim(),
-        },
+      const quote = await calculateQuote({
+        pickup_lat: store.pickup_lat!,
+        pickup_lng: store.pickup_lng!,
+        dropoff_lat: store.dropoff_lat!,
+        dropoff_lng: store.dropoff_lng!,
+        items: store.items.map((i) => ({ size: i.size, quantity: i.quantity })),
+        scheduled_date: store.scheduled_date,
+        time_window: store.time_window as 'morning' | 'afternoon' | 'evening',
+        apply_credit: !!session,
+        promo_code: store.promo_code.trim(),
+        userId: session?.user?.id,
       })
-      if (res.error) throw new Error(await getFunctionErrorMessage(res.error))
-      if (res.data?.error) throw new Error(res.data.error as string)
-      store.setQuote(res.data)
-      if ((res.data.promo_discount ?? 0) > 0) {
-        setPromoMsg(`Promo ${res.data.promo_code} applied — you save $${Number(res.data.promo_discount).toFixed(2)}`)
+      store.setQuote(quote)
+      if ((quote.promo_discount ?? 0) > 0) {
+        setPromoMsg(`Promo ${quote.promo_code} applied — you save $${Number(quote.promo_discount).toFixed(2)}`)
       } else {
         setPromoMsg('That promo code is invalid or expired.')
       }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Map, List } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
@@ -12,6 +12,7 @@ import { format } from 'date-fns'
 import type { Job } from '../../types'
 import { vehicleCanHandleJob } from '../../lib/vehicleSize'
 import { SERVICE_AREA_LABEL } from '../../lib/serviceArea'
+import { requestPushPermission } from '../../hooks/usePushNotifications'
 
 const TIME_LABELS = { morning: '8am–12pm', afternoon: '12pm–5pm', evening: '5pm–8pm' }
 
@@ -68,42 +69,59 @@ export default function RequestCenterPage() {
   const qc = useQueryClient()
   const [view, setView] = useState<'map' | 'list'>('map')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [filter, setFilter] = useState({ date: '', minKm: '', maxKm: '', vehicleOnly: true })
+  const [filter, setFilter] = useState({ date: '', minKm: '', maxKm: '', vehicleOnly: false })
 
   const { isLoaded } = useGoogleMapsLoader()
 
   const { data: moverProfile } = useQuery({
     queryKey: ['mover-profile-self', profile?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('mover_profiles').select('is_online, vehicle_type').eq('id', profile!.id).single()
+      const { data, error } = await supabase
+        .from('mover_profiles')
+        .select('is_online, vehicle_type, status')
+        .eq('id', profile!.id)
+        .single()
+      if (error) throw error
       return data
     },
     enabled: !!profile,
   })
 
-  const { data: jobs, isLoading } = useQuery({
+  const isApproved = moverProfile?.status === 'active'
+
+  const { data: jobs, isLoading, error: jobsError } = useQuery({
     queryKey: ['open-jobs'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('jobs')
         .select('*, items:job_items(*)')
         .eq('status', 'open')
         .order('created_at', { ascending: false })
         .limit(100)
+      if (error) throw error
       return data as Job[]
     },
-    enabled: moverProfile?.is_online === true,
+    enabled: isApproved,
+    refetchInterval: 15_000,
+  })
+
+  const toggleOnline = useMutation({
+    mutationFn: async (online: boolean) => {
+      await supabase.from('mover_profiles').update({ is_online: online }).eq('id', profile!.id)
+      if (online) requestPushPermission()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mover-profile-self', profile?.id] }),
   })
 
   useEffect(() => {
-    if (moverProfile?.is_online !== true) return
+    if (!isApproved) return
     const ch = supabase.channel('request-center')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
         qc.invalidateQueries({ queryKey: ['open-jobs'] })
       })
       .subscribe()
     return () => { ch.unsubscribe() }
-  }, [qc, moverProfile?.is_online])
+  }, [qc, isApproved])
 
   const filtered = (jobs ?? []).filter((j) => {
     if (filter.date && j.scheduled_date !== filter.date) return false
@@ -116,13 +134,24 @@ export default function RequestCenterPage() {
   })
 
   const selectedJob = filtered.find((j) => j.id === selectedId)
+  const hiddenByFilter = (jobs?.length ?? 0) - filtered.length
 
-  if (!moverProfile?.is_online) {
+  if (moverProfile?.status === 'pending') {
     return (
       <div className="card p-8 text-center">
-        <p className="text-xl font-bold mb-2">You&apos;re offline</p>
-        <p className="text-sm text-ink-muted mb-4">Go online from Home to see jobs on the map.</p>
-        <Link to="/mover/dashboard"><Button>Go online</Button></Link>
+        <p className="text-xl font-bold mb-2">Application pending</p>
+        <p className="text-sm text-ink-muted mb-4">An admin must approve your mover account before you can see jobs.</p>
+        <Link to="/mover/pending"><Button variant="secondary">View status</Button></Link>
+      </div>
+    )
+  }
+
+  if (!isApproved) {
+    return (
+      <div className="card p-8 text-center">
+        <p className="text-xl font-bold mb-2">Complete your application</p>
+        <p className="text-sm text-ink-muted mb-4">Submit your mover profile to start receiving jobs.</p>
+        <Link to="/mover/application"><Button>Apply now</Button></Link>
       </div>
     )
   }
@@ -133,30 +162,48 @@ export default function RequestCenterPage() {
 
   return (
     <div className="flex flex-col gap-4 -mx-4 -mt-2">
-      <div className="px-4 flex items-center justify-between">
+      <div className="px-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-ink">Available jobs</h1>
           <p className="text-xs text-ink-muted">{SERVICE_AREA_LABEL}</p>
         </div>
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setView('map')}
+              className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'map' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
+            >
+              <Map size={16} /> Map
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'list' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
+            >
+              <List size={16} /> List
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setView('map')}
-            className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'map' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
+            onClick={() => toggleOnline.mutate(!moverProfile?.is_online)}
+            disabled={toggleOnline.isPending}
+            className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              moverProfile?.is_online ? 'bg-mover text-white' : 'bg-white border border-gray-200 text-ink-muted'
+            }`}
           >
-            <Map size={16} /> Map
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className={`px-3 py-2 flex items-center gap-1 text-sm font-medium ${view === 'list' ? 'bg-mover text-white' : 'bg-white text-ink-muted'}`}
-          >
-            <List size={16} /> List
+            {moverProfile?.is_online ? '● On' : 'Go online'}
           </button>
         </div>
       </div>
 
-      <div className="px-4 flex gap-2 flex-wrap">
+      {!moverProfile?.is_online && (
+        <div className="mx-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+          You&apos;re offline — jobs are listed below. Go <strong>online</strong> to claim one.
+        </div>
+      )}
+
+      <div className="px-4 flex gap-2 flex-wrap items-center">
         <input
           type="date"
           value={filter.date}
@@ -184,14 +231,29 @@ export default function RequestCenterPage() {
             onChange={(e) => setFilter((f) => ({ ...f, vehicleOnly: e.target.checked }))}
             className="rounded"
           />
-          My vehicle
+          My vehicle only
         </label>
+        {(jobs?.length ?? 0) > 0 && (
+          <span className="text-xs text-ink-muted ml-auto">
+            {jobs!.length} open{hiddenByFilter > 0 ? ` · ${hiddenByFilter} hidden by filters` : ''}
+          </span>
+        )}
       </div>
+
+      {jobsError && (
+        <div className="mx-4 card p-4 text-sm text-red-600">
+          Could not load jobs. Refresh the page or check you&apos;re signed in as a mover.
+        </div>
+      )}
 
       {isLoading && <div className="flex justify-center py-12"><Spinner className="h-8 w-8" /></div>}
 
-      {!isLoading && filtered.length === 0 && (
-        <div className="card mx-4 p-8 text-center text-ink-muted">No jobs right now. Stay online.</div>
+      {!isLoading && !jobsError && filtered.length === 0 && (
+        <div className="card mx-4 p-8 text-center text-ink-muted">
+          {jobs && jobs.length > 0
+            ? 'No jobs match your filters. Clear filters or turn off “My vehicle only”.'
+            : 'No open jobs right now. When a customer books, it will appear here automatically.'}
+        </div>
       )}
 
       {view === 'map' && !isLoading && filtered.length > 0 && (
@@ -209,13 +271,10 @@ export default function RequestCenterPage() {
           ) : (
             <p className="text-center text-sm text-ink-muted py-2">Tap a pin to see job details</p>
           )}
-          {filtered.length > 1 && !selectedJob && (
-            <p className="text-xs text-center text-ink-muted">{filtered.length} jobs on map</p>
-          )}
         </div>
       )}
 
-      {view === 'list' && !isLoading && (
+      {view === 'list' && !isLoading && filtered.length > 0 && (
         <div className="px-4 flex flex-col gap-3 pb-4">
           {filtered.map((job) => (
             <JobCard key={job.id} job={job} />

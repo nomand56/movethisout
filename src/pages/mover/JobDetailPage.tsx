@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, getFunctionErrorMessage } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
+import { claimJob } from '../../lib/claimJob'
 import { useAuthStore } from '../../store/authStore'
 import { StatusBadge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -42,9 +43,8 @@ export default function MoverJobDetailPage() {
 
   const claimMutation = useMutation({
     mutationFn: async () => {
-      const res = await supabase.functions.invoke('claim-job', { body: { job_id: id } })
-      if (res.error) throw new Error(await getFunctionErrorMessage(res.error))
-      if (res.data?.error) throw new Error(res.data.error)
+      const result = await claimJob(id!, profile!.id)
+      if (!result.ok) throw new Error(result.error)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mover-active-job', profile?.id] })
@@ -156,7 +156,7 @@ export default function MoverJobDetailPage() {
 
       {job.status === 'open' && (
         <Button fullWidth size="lg" loading={claimMutation.isPending} disabled={hasActiveJob} onClick={() => claimMutation.mutate()}>
-          {hasActiveJob ? 'Finish current job first' : 'Accept job ▸'}
+          {hasActiveJob ? 'Finish current job first' : 'Accept & start navigation'}
         </Button>
       )}
       {hasActiveJob && job.status === 'open' && (

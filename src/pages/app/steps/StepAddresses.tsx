@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useJobCreationStore } from '../../../store/jobCreationStore'
 import { useAuthStore } from '../../../store/authStore'
 import { supabase, isSchemaMissingError } from '../../../lib/supabase'
+import { isInServiceArea, serviceAreaError } from '../../../lib/serviceArea'
 import AddressAutocomplete from '../../../components/maps/AddressAutocomplete'
 import Button from '../../../components/ui/Button'
 import { useState } from 'react'
@@ -30,6 +31,12 @@ export default function StepAddresses({ onNext }: Props) {
     const e: Record<string, string> = {}
     if (!store.pickup_address) e.pickup = 'Enter a pickup address'
     if (!store.dropoff_address) e.dropoff = 'Enter a drop-off address'
+    if (store.pickup_lat != null && store.pickup_lng != null && !isInServiceArea(store.pickup_lat, store.pickup_lng)) {
+      e.pickup = serviceAreaError()
+    }
+    if (store.dropoff_lat != null && store.dropoff_lng != null && !isInServiceArea(store.dropoff_lat, store.dropoff_lng)) {
+      e.dropoff = serviceAreaError()
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -76,7 +83,7 @@ export default function StepAddresses({ onNext }: Props) {
 
       <AddressAutocomplete
         label="Pickup"
-        placeholder="123 Main St, Vancouver"
+        placeholder="350 Lansdowne St, Kamloops"
         error={errors.pickup}
         defaultValue={store.pickup_address}
         onPlaceSelected={({ address, lat, lng }) =>
@@ -85,7 +92,7 @@ export default function StepAddresses({ onNext }: Props) {
       />
       <AddressAutocomplete
         label="Drop-off"
-        placeholder="456 Oak Ave, Burnaby"
+        placeholder="450 Lansdowne St, Kamloops"
         error={errors.dropoff}
         defaultValue={store.dropoff_address}
         onPlaceSelected={({ address, lat, lng }) =>

@@ -18,40 +18,36 @@ export default function BottomNav({ items, variant = 'customer' }: Props) {
   const isMover = variant === 'mover'
 
   return (
-    <nav className={clsx(
-      'fixed bottom-0 left-0 right-0 z-50 safe-area-pb border-t',
-      isMover ? 'bg-mover border-slate-600' : 'bg-white border-gray-200',
-    )}>
-      <div className="max-w-lg mx-auto flex">
+    <nav
+      className={clsx(
+        'fixed bottom-0 left-0 right-0 z-40 border-t nav-safe-pb',
+        isMover ? 'bg-mover border-slate-600' : 'bg-white border-gray-200',
+      )}
+    >
+      <div className="max-w-lg mx-auto flex items-stretch px-1 pt-1">
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
               clsx(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] text-[11px] font-medium transition-colors',
+                'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] text-[11px] font-medium transition-colors rounded-lg mx-0.5',
                 item.accent
                   ? isActive
-                    ? 'text-white'
-                    : 'text-white'
+                    ? 'bg-accent text-white'
+                    : 'bg-accent/90 text-white hover:bg-accent'
                   : isMover
                   ? isActive
-                    ? 'text-white'
-                    : 'text-white/50 hover:text-white/80'
+                    ? 'text-white bg-white/10'
+                    : 'text-white/60 hover:text-white'
                   : isActive
-                  ? 'text-accent'
-                  : 'text-ink-muted hover:text-ink',
+                  ? 'text-accent bg-accent-soft'
+                  : 'text-ink-muted hover:text-ink hover:bg-gray-50',
               )
             }
           >
-            <span className={clsx(
-              'flex items-center justify-center rounded-full',
-              item.accent && 'bg-accent w-11 h-11 -mt-4 shadow-soft border-4 border-white',
-            )}>
-              {item.icon}
-            </span>
-            {!item.accent && <span>{item.label}</span>}
-            {item.accent && <span className="text-[10px] font-semibold text-accent -mt-0.5">{item.label}</span>}
+            {item.icon}
+            <span>{item.label}</span>
           </NavLink>
         ))}
       </div>
@@ -61,7 +57,7 @@ export default function BottomNav({ items, variant = 'customer' }: Props) {
 
 export const requesterNav: NavItem[] = [
   { to: '/app/dashboard', label: 'Orders', icon: <Home size={20} /> },
-  { to: '/app/jobs/new', label: 'Book', icon: <Plus size={22} />, accent: true },
+  { to: '/app/jobs/new', label: 'Book', icon: <Plus size={20} />, accent: true },
   { to: '/app/settings', label: 'Account', icon: <User size={20} /> },
 ]
 

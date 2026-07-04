@@ -1,29 +1,82 @@
+import { useQuery } from '@tanstack/react-query'
 import { useJobCreationStore } from '../../../store/jobCreationStore'
+import { useAuthStore } from '../../../store/authStore'
+import { supabase, isSchemaMissingError } from '../../../lib/supabase'
 import AddressAutocomplete from '../../../components/maps/AddressAutocomplete'
 import Button from '../../../components/ui/Button'
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import type { SavedAddress } from '../../../types'
 
 interface Props { onNext: () => void }
 
 export default function StepAddresses({ onNext }: Props) {
-  const { t } = useTranslation()
   const store = useJobCreationStore()
+  const { profile } = useAuthStore()
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const { data: saved } = useQuery({
+    queryKey: ['saved-addresses', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('saved_addresses').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false })
+      if (error && isSchemaMissingError(error)) return []
+      if (error) throw error
+      return (data ?? []) as SavedAddress[]
+    },
+    enabled: !!profile,
+    retry: false,
+  })
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!store.pickup_address) e.pickup = t('steps.addresses.pickup_error')
-    if (!store.dropoff_address) e.dropoff = t('steps.addresses.dropoff_error')
+    if (!store.pickup_address) e.pickup = 'Enter a pickup address'
+    if (!store.dropoff_address) e.dropoff = 'Enter a drop-off address'
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
+  const applySaved = (addr: SavedAddress, field: 'pickup' | 'dropoff') => {
+    if (field === 'pickup') {
+      store.setAddresses({
+        ...store,
+        pickup_address: addr.address,
+        pickup_lat: addr.lat,
+        pickup_lng: addr.lng,
+      })
+    } else {
+      store.setAddresses({
+        ...store,
+        dropoff_address: addr.address,
+        dropoff_lat: addr.lat,
+        dropoff_lng: addr.lng,
+      })
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
+      <h2 className="font-display text-2xl uppercase">Where from &amp; to?</h2>
+
+      {saved && saved.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="font-condensed font-bold uppercase tracking-wider text-xs text-gray-500">Saved places</p>
+          <div className="flex gap-2 flex-wrap">
+            {saved.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => applySaved(a, 'pickup')}
+                className="border-3 border-jet px-3 py-1 text-xs font-bold bg-concrete hover:bg-caution"
+              >
+                {a.label} → pickup
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <AddressAutocomplete
-        label={t('steps.addresses.pickup_label')}
-        placeholder={t('steps.addresses.pickup_placeholder')}
+        label="Pickup"
+        placeholder="123 Main St, Vancouver"
         error={errors.pickup}
         defaultValue={store.pickup_address}
         onPlaceSelected={({ address, lat, lng }) =>
@@ -31,25 +84,41 @@ export default function StepAddresses({ onNext }: Props) {
         }
       />
       <AddressAutocomplete
-        label={t('steps.addresses.dropoff_label')}
-        placeholder={t('steps.addresses.dropoff_placeholder')}
+        label="Drop-off"
+        placeholder="456 Oak Ave, Burnaby"
         error={errors.dropoff}
         defaultValue={store.dropoff_address}
         onPlaceSelected={({ address, lat, lng }) =>
           store.setAddresses({ ...store, dropoff_address: address, dropoff_lat: lat, dropoff_lng: lng })
         }
       />
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('steps.addresses.notes_label')}</label>
+
+      {saved && saved.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {saved.map((a) => (
+            <button
+              key={`d-${a.id}`}
+              type="button"
+              onClick={() => applySaved(a, 'dropoff')}
+              className="border-3 border-jet px-3 py-1 text-xs font-bold bg-white hover:bg-caution"
+            >
+              {a.label} → drop-off
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-condensed font-bold uppercase tracking-wider text-jet">Notes (optional)</label>
         <textarea
-          className="w-full rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+          className="w-full border-3 border-jet px-4 py-3 text-base bg-white text-jet placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-haul resize-none"
           rows={3}
-          placeholder={t('steps.addresses.notes_placeholder')}
+          placeholder="Stairs, parking, fragile items…"
           value={store.notes}
           onChange={(e) => store.setNotes(e.target.value)}
         />
       </div>
-      <Button fullWidth onClick={() => validate() && onNext()}>{t('steps.addresses.continue')}</Button>
+      <Button fullWidth onClick={() => validate() && onNext()}>Continue ▸</Button>
     </div>
   )
 }

@@ -1,6 +1,9 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { getCallerProfile } from '../_shared/auth.ts'
 import { sendSmsBestEffort } from '../_shared/sms.ts'
+import { sendPushBestEffort } from '../_shared/push.ts'
+
+import { insertNotification } from '../_shared/notifications.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -48,6 +51,13 @@ Deno.serve(async (req) => {
   if (!claimed) return jsonResponse({ error: 'This job is no longer available' }, 409)
 
   await sendSmsBestEffort(admin, claimed.requester_id, 'A mover has claimed your MoveThisOut job! They will be in touch soon.')
+  await sendPushBestEffort(admin, claimed.requester_id, {
+    title: 'Mover assigned',
+    body: 'A mover has claimed your job!',
+    url: `/app/jobs/${claimed.id}`,
+  })
+
+  await insertNotification(admin, claimed.requester_id, 'Mover assigned', 'A mover claimed your job and will be in touch soon.', `/app/jobs/${claimed.id}`)
 
   return jsonResponse({ job: claimed })
 })

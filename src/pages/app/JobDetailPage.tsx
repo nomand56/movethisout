@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import { publishDraftJob } from '../../lib/confirmBooking'
 import { useAuthStore } from '../../store/authStore'
 import { StatusBadge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -12,13 +13,14 @@ import Modal from '../../components/ui/Modal'
 import LiveTrackingMap from '../../components/maps/LiveTrackingMap'
 import ChatPanel from '../../components/chat/ChatPanel'
 import ChatUnreadDot from '../../components/chat/ChatUnreadDot'
-import { useJsApiLoader } from '@react-google-maps/api'
-import type { Job, LocationEvent } from '../../types'
+import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
+import type { Job, LocationEvent, MoverProfile } from '../../types'
 import { format } from 'date-fns'
 import { requestPushPermission } from '../../hooks/usePushNotifications'
+import OrderTracker from '../../components/brand/OrderTracker'
 import { MessageCircle } from 'lucide-react'
 
-const LIBRARIES: ('places')[] = ['places']
+
 const TIME_LABELS = { morning: '8am – 12pm', afternoon: '12pm – 5pm', evening: '5pm – 8pm' }
 
 export default function RequesterJobDetail() {
@@ -32,9 +34,11 @@ export default function RequesterJobDetail() {
   const [reviewRating, setReviewRating] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_KEY, libraries: LIBRARIES })
+  const { isLoaded } = useGoogleMapsLoader()
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -60,8 +64,11 @@ export default function RequesterJobDetail() {
   const { data: moverProfile } = useQuery({
     queryKey: ['mover-profile', job?.mover_id],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('*').eq('id', job!.mover_id!).single()
-      return data
+      const [{ data: profileData }, { data: moverData }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', job!.mover_id!).single(),
+        supabase.from('mover_profiles').select('*').eq('id', job!.mover_id!).single(),
+      ])
+      return { profile: profileData, mover: moverData as MoverProfile }
     },
     enabled: !!job?.mover_id,
   })
@@ -126,11 +133,64 @@ export default function RequesterJobDetail() {
 
   const canCancel = job.status === 'draft' || job.status === 'open'
 
+  const confirmPayment = async () => {
+    if (!id) return
+    setPaying(true)
+    setConfirmError('')
+    const result = await publishDraftJob(id)
+    setPaying(false)
+    if (!result.ok) {
+      setConfirmError(result.error)
+      return
+    }
+    requestPushPermission()
+    qc.invalidateQueries({ queryKey: ['job', id] })
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <StatusBadge status={job.status} />
-        <span className="text-xs text-gray-400 ml-auto">{format(new Date(job.created_at), 'dd MMM yyyy')}</span>
+    <div className="flex flex-col gap-5">
+      <div className="card-yard overflow-hidden">
+        <div className="bg-jet text-white px-4 py-3 flex items-center justify-between">
+          <StatusBadge status={job.status} />
+          {job.quoted_price && (
+            <span className="price-hero text-3xl text-haul">${job.quoted_price.toFixed(0)}</span>
+          )}
+        </div>
+        <div className="p-4">
+          {job.status !== 'draft' && job.status !== 'cancelled' && (
+            <div className="mb-4">
+              <OrderTracker status={job.status} />
+            </div>
+          )}
+          <p className="text-xs text-gray-500">{format(new Date(job.created_at), 'dd MMM yyyy')}</p>
+          {job.paid_at && (
+            <button
+              type="button"
+              className="mt-2 text-haul font-bold text-sm hover:underline"
+              onClick={() => {
+                const lines = [
+                  'MoveThisOut — Receipt',
+                  `Job ID: ${job.id}`,
+                  `Date: ${format(new Date(job.paid_at!), 'dd MMM yyyy HH:mm')}`,
+                  `Pickup: ${job.pickup_address}`,
+                  `Drop-off: ${job.dropoff_address}`,
+                  `Scheduled: ${job.scheduled_date} (${job.time_window})`,
+                  `Total: $${Number(job.quoted_price).toFixed(2)}`,
+                  job.promo_code ? `Promo: ${job.promo_code} (-$${Number(job.promo_discount ?? 0).toFixed(2)})` : '',
+                ].filter(Boolean).join('\n')
+                const blob = new Blob([lines], { type: 'text/plain' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `movethisout-receipt-${job.id.slice(0, 8)}.txt`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              Download receipt ▸
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Live tracking map */}
@@ -146,45 +206,60 @@ export default function RequesterJobDetail() {
         />
       )}
       {job.status === 'in_progress' && !moverPos && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 text-center text-sm text-orange-700 dark:text-orange-400">
+        <div className="card-yard bg-caution p-4 text-center text-sm text-orange-700">
           Mover is on the way — waiting for GPS signal…
         </div>
       )}
 
       {/* Addresses */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+      <div className="card-yard divide-y divide-gray-100">
         <div className="p-4">
           <p className="text-xs text-gray-500 mb-1">Pickup</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{job.pickup_address}</p>
+          <p className="text-sm font-medium text-jet">{job.pickup_address}</p>
         </div>
         <div className="p-4">
           <p className="text-xs text-gray-500 mb-1">Drop-off</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{job.dropoff_address}</p>
+          <p className="text-sm font-medium text-jet">{job.dropoff_address}</p>
         </div>
         <div className="p-4 grid grid-cols-2">
           <div>
             <p className="text-xs text-gray-500 mb-1">Date</p>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{format(new Date(job.scheduled_date), 'EEE, dd MMM')}</p>
+            <p className="text-sm font-medium text-jet">{format(new Date(job.scheduled_date), 'EEE, dd MMM')}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500 mb-1">Time</p>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{TIME_LABELS[job.time_window]}</p>
+            <p className="text-sm font-medium text-jet">{TIME_LABELS[job.time_window]}</p>
           </div>
         </div>
         {job.quoted_price && (
           <div className="p-4 flex justify-between items-center">
             <span className="text-xs text-gray-500">Total Price</span>
-            <span className="font-bold text-gray-900 dark:text-gray-100">${job.quoted_price.toFixed(2)}</span>
+            <span className="font-bold text-jet">${job.quoted_price.toFixed(2)}</span>
           </div>
         )}
       </div>
 
+      {job.status === 'draft' && (
+        <div className="card-yard bg-caution p-4 flex flex-col gap-3">
+          <p className="text-sm font-medium text-jet">Ready to publish?</p>
+          <p className="text-xs text-gray-600">Confirm your booking to make it visible to movers.</p>
+          {confirmError && <p className="text-sm text-red-600 font-medium">{confirmError}</p>}
+          <Button fullWidth loading={paying} onClick={confirmPayment}>Confirm &amp; book — ${job.quoted_price?.toFixed(2)}</Button>
+        </div>
+      )}
+
       {/* Mover info */}
-      {moverProfile && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+      {moverProfile?.profile && (
+        <div className="card-yard p-4">
           <p className="text-xs text-gray-500 mb-2">Your Mover</p>
-          <p className="font-semibold text-gray-900 dark:text-gray-100">{moverProfile.full_name}</p>
-          <p className="text-sm text-gray-500">{moverProfile.phone}</p>
+          <p className="font-semibold text-jet">{moverProfile.profile.full_name}</p>
+          <p className="text-sm text-gray-500">{moverProfile.profile.phone}</p>
+          {moverProfile.mover && (
+            <p className="text-sm text-gray-500 capitalize mt-1">
+              {moverProfile.mover.vehicle_type.replace('_', ' ')}
+              {moverProfile.mover.avg_rating ? ` · ★ ${moverProfile.mover.avg_rating.toFixed(1)}` : ''}
+            </p>
+          )}
         </div>
       )}
 
@@ -192,22 +267,22 @@ export default function RequesterJobDetail() {
       {job.mover_id && (
         <button
           onClick={() => setShowChat(true)}
-          className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 text-left hover:shadow-md transition"
+          className="flex items-center gap-2 card-yard p-4 text-left hover:shadow-md transition"
         >
-          <MessageCircle size={18} className="text-brand-500" />
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</span>
+          <MessageCircle size={18} className="text-haul" />
+          <span className="text-sm font-medium text-jet">Messages</span>
           <ChatUnreadDot jobId={id!} />
         </button>
       )}
 
       {/* Items */}
       {job.items && job.items.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+        <div className="card-yard p-4">
           <p className="text-xs text-gray-500 mb-3">Items ({job.items.length})</p>
           <div className="flex flex-col gap-2">
             {job.items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-gray-900 dark:text-gray-100">{item.name} × {item.quantity}</span>
+                <span className="text-jet">{item.name} × {item.quantity}</span>
                 <span className="text-gray-400 capitalize">{item.size.replace('_', ' ')}</span>
               </div>
             ))}
@@ -217,12 +292,12 @@ export default function RequesterJobDetail() {
 
       {/* Status timeline */}
       {job.status_history && job.status_history.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+        <div className="card-yard p-4">
           <p className="text-xs text-gray-500 mb-3">Timeline</p>
           <div className="flex flex-col gap-2">
             {[...job.status_history].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map((h) => (
               <div key={h.id} className="flex justify-between text-sm">
-                <span className="capitalize text-gray-700 dark:text-gray-300">{h.status.replace('_', ' ')}</span>
+                <span className="capitalize text-gray-700">{h.status.replace('_', ' ')}</span>
                 <span className="text-gray-400 text-xs">{format(new Date(h.created_at), 'dd MMM HH:mm')}</span>
               </div>
             ))}
@@ -232,11 +307,11 @@ export default function RequesterJobDetail() {
 
       {/* Review */}
       {job.status === 'completed' && !existingReview && job.mover_id && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-brand-200 dark:border-brand-800 p-4">
-          <p className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Leave a review</p>
+        <div className="card-yard p-4">
+          <p className="font-semibold text-jet mb-3">Leave a review</p>
           <StarRating value={reviewRating} onChange={setReviewRating} />
           <textarea
-            className="w-full mt-3 rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+            className="w-full mt-3 border-3 border-jet px-4 py-3 text-sm bg-white text-jet focus:outline-none focus:ring-2 focus:ring-haul resize-none"
             rows={3}
             placeholder="How was the service? (optional)"
             value={reviewComment}
@@ -248,10 +323,10 @@ export default function RequesterJobDetail() {
         </div>
       )}
       {existingReview && (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
+        <div className="card-yard bg-concrete p-4">
           <p className="text-sm text-gray-500 mb-1">Your review</p>
           <StarRating value={existingReview.rating} readonly />
-          {existingReview.comment && <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{existingReview.comment}</p>}
+          {existingReview.comment && <p className="text-sm text-gray-700 mt-2">{existingReview.comment}</p>}
         </div>
       )}
 

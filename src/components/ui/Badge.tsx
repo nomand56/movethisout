@@ -1,26 +1,26 @@
 import type { JobStatus } from '../../types'
 
 const STATUS_STYLES: Record<JobStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  open: 'bg-blue-100 text-blue-700',
-  claimed: 'bg-yellow-100 text-yellow-700',
-  in_progress: 'bg-orange-100 text-orange-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
+  draft: 'bg-concrete text-jet border-jet',
+  open: 'bg-white text-jet border-jet',
+  claimed: 'bg-caution text-jet border-jet',
+  in_progress: 'bg-haul text-white border-jet',
+  completed: 'bg-jet text-white border-jet',
+  cancelled: 'bg-red-100 text-red-800 border-red-800',
 }
 
 const STATUS_LABELS: Record<JobStatus, string> = {
-  draft: 'Draft',
-  open: 'Open',
-  claimed: 'Mover Claimed',
-  in_progress: 'In Progress',
-  completed: 'Completed',
+  draft: 'Awaiting confirmation',
+  open: 'Finding mover',
+  claimed: 'Mover assigned',
+  in_progress: 'On the way',
+  completed: 'Delivered',
   cancelled: 'Cancelled',
 }
 
 export function StatusBadge({ status }: { status: JobStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
+    <span className={`inline-flex items-center border-2 px-2 py-0.5 text-[11px] font-condensed font-bold uppercase tracking-wider ${STATUS_STYLES[status]}`}>
       {STATUS_LABELS[status]}
     </span>
   )
@@ -28,7 +28,7 @@ export function StatusBadge({ status }: { status: JobStatus }) {
 
 export function Badge({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
+    <span className={`inline-flex items-center border-2 border-jet bg-haul text-white px-2 py-0.5 text-[11px] font-condensed font-bold uppercase tracking-wider ${className}`}>
       {children}
     </span>
   )

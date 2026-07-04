@@ -46,7 +46,7 @@ export default function ApprovalQueuePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mover Approvals</h1>
+      <h1 className="font-display text-2xl uppercase text-jet">Mover Approvals</h1>
       <p className="text-sm text-gray-500">{applications?.length ?? 0} pending application(s)</p>
 
       {applications?.length === 0 && (
@@ -55,10 +55,10 @@ export default function ApprovalQueuePage() {
 
       <div className="flex flex-col gap-4">
         {applications?.map((app: any) => (
-          <div key={app.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
+          <div key={app.id} className="card-yard p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-semibold text-gray-900 dark:text-gray-100">{app.profile.full_name}</p>
+                <p className="font-semibold text-jet">{app.profile.full_name}</p>
                 <p className="text-sm text-gray-500">{app.profile.email} · {app.profile.phone}</p>
                 <p className="text-xs text-gray-400 mt-0.5">Applied {format(new Date(app.created_at), 'dd MMM yyyy')}</p>
               </div>
@@ -80,29 +80,29 @@ export default function ApprovalQueuePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mt-4 text-xs text-gray-500 border-t border-gray-100 dark:border-gray-800 pt-4">
+            <div className="grid grid-cols-3 gap-4 mt-4 text-xs text-gray-500 border-t border-gray-100 pt-4">
               <div>
                 <p className="font-medium">Vehicle</p>
-                <p className="text-gray-900 dark:text-gray-100 capitalize">{app.vehicle_type.replace('_', ' ')}</p>
+                <p className="text-jet capitalize">{app.vehicle_type.replace('_', ' ')}</p>
               </div>
               <div>
                 <p className="font-medium">Capacity</p>
-                <p className="text-gray-900 dark:text-gray-100">{app.vehicle_capacity} m³</p>
+                <p className="text-jet">{app.vehicle_capacity} m³</p>
               </div>
               <div>
                 <p className="font-medium">Service radius</p>
-                <p className="text-gray-900 dark:text-gray-100">{app.service_radius} km</p>
+                <p className="text-jet">{app.service_radius} km</p>
               </div>
             </div>
 
             <div className="flex gap-2 mt-3">
               {app.licence_url && (
-                <button onClick={() => getDocUrl(app.licence_url)} className="flex items-center gap-1 text-xs text-brand-500 hover:underline">
+                <button onClick={() => getDocUrl(app.licence_url)} className="flex items-center gap-1 text-xs text-haul hover:underline">
                   <FileText size={12} />Driver's Licence
                 </button>
               )}
               {app.registration_url && (
-                <button onClick={() => getDocUrl(app.registration_url)} className="flex items-center gap-1 text-xs text-brand-500 hover:underline">
+                <button onClick={() => getDocUrl(app.registration_url)} className="flex items-center gap-1 text-xs text-haul hover:underline">
                   <FileText size={12} />Vehicle Registration
                 </button>
               )}
@@ -113,7 +113,7 @@ export default function ApprovalQueuePage() {
 
       <Modal open={!!rejectId} onClose={() => setRejectId(null)} title="Reject Application">
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Provide a reason for rejection. This will be emailed to the applicant.</p>
+          <p className="text-sm text-gray-600">Provide a reason for rejection. This will be emailed to the applicant.</p>
           <Input
             label="Rejection reason"
             placeholder="e.g. Incomplete documents, vehicle does not meet requirements"

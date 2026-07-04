@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { useWakeLock } from '../../hooks/useWakeLock'
+import { queueGpsEvent, flushGpsQueue } from '../../hooks/useGpsQueue'
+import { useGpsQueueFlush } from '../../hooks/useGpsQueueFlush'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import SignaturePad from '../../components/signature/SignaturePad'
@@ -24,6 +26,12 @@ const STEP_LABELS: Record<Step, string> = {
   complete: 'Complete Job',
 }
 
+function stepFromJob(job: Job): Step {
+  if (job.status === 'claimed') return 'navigate_pickup'
+  if (job.status === 'in_progress') return 'navigate_dropoff'
+  return 'navigate_pickup'
+}
+
 export default function ActiveJobPage() {
   const { profile } = useAuthStore()
   const navigate = useNavigate()
@@ -31,10 +39,11 @@ export default function ActiveJobPage() {
   const { request: requestWakeLock, release: releaseWakeLock } = useWakeLock()
   const watchIdRef = useRef<number | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const lastEmitRef = useRef(0)
   const [currentStep, setCurrentStep] = useState<Step>('navigate_pickup')
   const [photo, setPhoto] = useState<File | null>(null)
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
+  const [photoPath, setPhotoPath] = useState<string | null>(null)
+  const [signaturePath, setSignaturePath] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
 
   const { data: job, isLoading } = useQuery({
@@ -51,21 +60,46 @@ export default function ActiveJobPage() {
     enabled: !!profile,
   })
 
+  useEffect(() => {
+    if (job) setCurrentStep(stepFromJob(job))
+  }, [job?.id, job?.status])
+
+  const insertGps = useCallback(async (jobId: string, lat: number, lng: number) => {
+    await supabase.from('location_events').insert({ job_id: jobId, lat, lng })
+  }, [])
+
+  useGpsQueueFlush(insertGps)
+
+  const emitGps = useCallback(async (lat: number, lng: number) => {
+    if (!job) return
+    const now = Date.now()
+    if (now - lastEmitRef.current < 5000) return
+    lastEmitRef.current = now
+
+    channelRef.current?.send({ type: 'broadcast', event: 'gps', payload: { lat, lng } })
+
+    if (!navigator.onLine) {
+      await queueGpsEvent(job.id, lat, lng)
+      return
+    }
+    try {
+      await insertGps(job.id, lat, lng)
+    } catch {
+      await queueGpsEvent(job.id, lat, lng)
+    }
+  }, [job, insertGps])
+
   const startGPS = useCallback(() => {
     if (!job) return
     channelRef.current = supabase.channel(`job-gps-${job.id}`)
     channelRef.current.subscribe()
 
     watchIdRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords
-        channelRef.current?.send({ type: 'broadcast', event: 'gps', payload: { lat, lng } })
-        await supabase.from('location_events').insert({ job_id: job.id, lat, lng })
-      },
+      (pos) => emitGps(pos.coords.latitude, pos.coords.longitude),
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000 }
+      { enableHighAccuracy: true, maximumAge: 5000 },
     )
-  }, [job])
+  }, [job, emitGps])
 
   const stopGPS = useCallback(() => {
     if (watchIdRef.current !== null) {
@@ -87,6 +121,7 @@ export default function ActiveJobPage() {
   const updateStatus = useMutation({
     mutationFn: async (status: 'in_progress') => {
       await supabase.from('jobs').update({ status }).eq('id', job!.id)
+      await supabase.functions.invoke('notify-in-progress', { body: { job_id: job!.id } })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mover-active-job-full', profile?.id] }),
   })
@@ -95,25 +130,21 @@ export default function ActiveJobPage() {
     setPhoto(file)
     const path = `${profile!.id}/${job!.id}_completion.${file.name.split('.').pop()}`
     const { data } = await supabase.storage.from('completion-photos').upload(path, file, { upsert: true })
-    if (data) {
-      const { data: url } = supabase.storage.from('completion-photos').getPublicUrl(data.path)
-      setPhotoUrl(url.publicUrl)
-    }
+    if (data) setPhotoPath(data.path)
   }
 
   const handleSignatureSave = async (dataUrl: string) => {
-    setSignatureDataUrl(dataUrl)
     const blob = await (await fetch(dataUrl)).blob()
     const path = `${profile!.id}/${job!.id}_signature.png`
-    await supabase.storage.from('completion-photos').upload(path, blob, { upsert: true, contentType: 'image/png' })
+    const { data } = await supabase.storage.from('completion-photos').upload(path, blob, { upsert: true, contentType: 'image/png' })
+    if (data) setSignaturePath(data.path)
   }
 
   const completeJob = async () => {
-    if (!photoUrl || !signatureDataUrl || !job) return
+    if (!photoPath || !signaturePath || !job) return
     setCompleting(true)
-    const sigPath = `${profile!.id}/${job.id}_signature.png`
     const res = await supabase.functions.invoke('complete-job', {
-      body: { job_id: job.id, completion_photo_url: photoUrl, signature_url: sigPath },
+      body: { job_id: job.id, completion_photo_url: photoPath, signature_url: signaturePath },
     })
     setCompleting(false)
     if (!res.error) {
@@ -126,7 +157,6 @@ export default function ActiveJobPage() {
 
   const advanceStep = async () => {
     const idx = STEP_ORDER.indexOf(currentStep)
-    const next = STEP_ORDER[idx + 1]
     if (currentStep === 'confirm_arrival' && job) {
       await updateStatus.mutateAsync('in_progress')
     }
@@ -134,7 +164,7 @@ export default function ActiveJobPage() {
       await completeJob()
       return
     }
-    setCurrentStep(next)
+    setCurrentStep(STEP_ORDER[idx + 1])
   }
 
   const mapsLink = (address: string) =>
@@ -154,16 +184,15 @@ export default function ActiveJobPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Active Job</h1>
+        <h1 className="font-display text-xl uppercase text-jet">Active Job</h1>
         {job.status === 'in_progress' && (
           <p className="text-xs text-orange-500 font-medium mt-1 flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-            GPS broadcasting · Screen awake
+            GPS broadcasting every 5s · Screen awake
           </p>
         )}
       </div>
 
-      {/* Steps */}
       <div className="flex flex-col gap-2">
         {STEP_ORDER.map((step, i) => {
           const idx = STEP_ORDER.indexOf(currentStep)
@@ -174,10 +203,10 @@ export default function ActiveJobPage() {
               key={step}
               className={`rounded-2xl p-4 border transition ${
                 active
-                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                  ? 'border-brand-500 bg-caution'
                   : done
-                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
-                  : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 opacity-50'
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-gray-100 bg-white opacity-50'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -186,10 +215,10 @@ export default function ActiveJobPage() {
                     <CheckCircle size={18} className="text-green-500" />
                   ) : (
                     <div className={`h-5 w-5 rounded-full border-2 ${active ? 'border-brand-500' : 'border-gray-300'} flex items-center justify-center`}>
-                      {active && <div className="h-2 w-2 rounded-full bg-brand-500" />}
+                      {active && <div className="h-2 w-2 rounded-full bg-haul" />}
                     </div>
                   )}
-                  <span className={`text-sm font-medium ${active ? 'text-brand-700 dark:text-brand-400' : done ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}`}>
+                  <span className={`text-sm font-medium ${active ? 'text-brand-700' : done ? 'text-green-700' : 'text-gray-400'}`}>
                     {STEP_LABELS[step]}
                   </span>
                 </div>
@@ -199,7 +228,7 @@ export default function ActiveJobPage() {
                     href={mapsLink(step === 'navigate_pickup' ? job.pickup_address : job.dropoff_address)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1 text-xs text-brand-500 font-medium"
+                    className="flex items-center gap-1 text-xs text-haul font-medium"
                   >
                     <Navigation size={14} /> Open Maps
                   </a>
@@ -208,9 +237,8 @@ export default function ActiveJobPage() {
 
               {active && step === 'complete' && (
                 <div className="mt-4 flex flex-col gap-4">
-                  {/* Photo upload */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                       <Camera size={16} /> Delivery photo
                     </label>
                     <input
@@ -218,18 +246,16 @@ export default function ActiveJobPage() {
                       accept="image/*"
                       capture="environment"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoChange(f) }}
-                      className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700"
+                      className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-caution file:text-brand-700"
                     />
                     {photo && <p className="text-xs text-green-600 mt-1">✓ Photo ready</p>}
                   </div>
-
-                  {/* Signature */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
                       <PenLine size={16} /> Requester signature
                     </label>
                     <SignaturePad onSave={handleSignatureSave} />
-                    {signatureDataUrl && <p className="text-xs text-green-600 mt-1">✓ Signature captured</p>}
+                    {signaturePath && <p className="text-xs text-green-600 mt-1">✓ Signature captured</p>}
                   </div>
                 </div>
               )}
@@ -238,11 +264,10 @@ export default function ActiveJobPage() {
         })}
       </div>
 
-      {/* Messages */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+      <div className="card-yard p-4">
         <div className="flex items-center gap-2 mb-3">
-          <MessageCircle size={16} className="text-brand-500" />
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</p>
+          <MessageCircle size={16} className="text-haul" />
+          <p className="text-sm font-medium text-jet">Messages</p>
         </div>
         <ChatPanel jobId={job.id} canSend={job.status === 'claimed' || job.status === 'in_progress'} />
       </div>
@@ -256,7 +281,7 @@ export default function ActiveJobPage() {
           fullWidth
           size="lg"
           loading={completing}
-          disabled={!photo || !signatureDataUrl}
+          disabled={!photoPath || !signaturePath}
           onClick={completeJob}
         >
           Complete Job

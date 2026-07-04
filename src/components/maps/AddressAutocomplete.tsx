@@ -1,6 +1,10 @@
-import { useRef } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { Autocomplete } from '@react-google-maps/api'
 import { clsx } from '../../lib/clsx'
+
+const AUTOCOMPLETE_OPTIONS: google.maps.places.AutocompleteOptions = {
+  fields: ['formatted_address', 'geometry'],
+}
 
 interface Props {
   label?: string
@@ -13,6 +17,16 @@ interface Props {
 export default function AddressAutocomplete({ label, placeholder, error, onPlaceSelected, defaultValue }: Props) {
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const [ready, setReady] = useState(false)
+
+  // Avoid React Strict Mode double-mount issues with the Places Autocomplete widget.
+  useEffect(() => {
+    setReady(true)
+    return () => {
+      autocompleteRef.current = null
+      setReady(false)
+    }
+  }, [])
 
   const onLoad = (autocomplete: google.maps.places.Autocomplete) => {
     autocompleteRef.current = autocomplete
@@ -28,24 +42,36 @@ export default function AddressAutocomplete({ label, placeholder, error, onPlace
     })
   }
 
+  const inputClass = clsx(
+    'w-full border-3 px-4 py-3 text-base bg-white text-jet placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-haul min-h-[48px]',
+    error ? 'border-red-600' : 'border-jet',
+  )
+
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+        <label className="text-sm font-condensed font-bold uppercase tracking-wider text-jet">{label}</label>
       )}
-      <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
+      {ready ? (
+        <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged} options={AUTOCOMPLETE_OPTIONS}>
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder={placeholder}
+            defaultValue={defaultValue}
+            className={inputClass}
+          />
+        </Autocomplete>
+      ) : (
         <input
-          ref={inputRef}
           type="text"
           placeholder={placeholder}
           defaultValue={defaultValue}
-          className={clsx(
-            'w-full rounded-xl border px-4 py-3 text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition min-h-[44px]',
-            error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-          )}
+          className={inputClass}
+          readOnly
         />
-      </Autocomplete>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      )}
+      {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
     </div>
   )
 }

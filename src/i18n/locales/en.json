@@ -99,7 +99,7 @@
   "steps.review.total": "Total",
   "steps.review.back": "Back",
   "steps.review.confirm_default": "Confirm Booking",
-  "steps.review.payment_note": "Payment will be collected at a later step. No charge now.",
+  "steps.review.payment_note": "You will confirm your booking on the next step. No card required.",
 
   "dashboard.title": "My Moves",
   "dashboard.welcome_back": "Welcome back,",

@@ -5,16 +5,27 @@ import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
+import { useGoogleMapsLoader } from '../../hooks/useGoogleMapsLoader'
+import AddressAutocomplete from '../../components/maps/AddressAutocomplete'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
+import Spinner from '../../components/ui/Spinner'
 
-const schema = z.object({
-  vehicle_type: z.enum(['cargo_van', 'small_truck', 'large_truck']),
-  vehicle_capacity: z.number().min(1, 'Enter vehicle capacity'),
-  service_radius: z.number().min(1, 'Enter service radius'),
-  home_base_address: z.string().min(5, 'Enter your home base address'),
-})
+const schema = z
+  .object({
+    vehicle_type: z.enum(['cargo_van', 'small_truck', 'large_truck']),
+    vehicle_capacity: z.number().min(1, 'Enter vehicle capacity'),
+    service_radius: z.number().min(1, 'Enter service radius'),
+    home_base_address: z.string().min(5, 'Enter your home base address'),
+    home_base_lat: z.number().optional(),
+    home_base_lng: z.number().optional(),
+  })
+  .refine((d) => d.home_base_lat != null && d.home_base_lng != null, {
+    message: 'Select an address from the Google suggestions',
+    path: ['home_base_address'],
+  })
+
 type FormData = z.infer<typeof schema>
 
 const VEHICLE_OPTIONS = [
@@ -26,15 +37,18 @@ const VEHICLE_OPTIONS = [
 export default function MoverApplicationPage() {
   const { profile } = useAuthStore()
   const navigate = useNavigate()
+  const { isLoaded } = useGoogleMapsLoader()
   const [licenceFile, setLicenceFile] = useState<File | null>(null)
   const [regFile, setRegFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { vehicle_type: 'cargo_van', vehicle_capacity: 10, service_radius: 50 },
   })
+
+  const homeBaseAddress = watch('home_base_address')
 
   const uploadDoc = async (file: File, name: string) => {
     const path = `${profile!.id}/${name}_${Date.now()}.${file.name.split('.').pop()}`
@@ -55,12 +69,16 @@ export default function MoverApplicationPage() {
       ])
       const { error } = await supabase.from('mover_profiles').upsert({
         id: profile.id,
-        ...data,
+        vehicle_type: data.vehicle_type,
+        vehicle_capacity: data.vehicle_capacity,
+        service_radius: data.service_radius,
+        home_base_address: data.home_base_address,
         licence_url: licencePath,
         registration_url: regPath,
         status: 'pending',
       })
       if (error) throw error
+      await supabase.functions.invoke('notify-mover-application')
       navigate('/mover/pending')
     } catch (err) {
       setFileError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
@@ -68,11 +86,19 @@ export default function MoverApplicationPage() {
     setSubmitting(false)
   }
 
+  if (!isLoaded) {
+    return (
+      <div className="flex justify-center py-20">
+        <Spinner className="h-8 w-8" />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Mover Application</h1>
-        <p className="text-sm text-gray-500 mt-1">Complete your profile to start accepting jobs.</p>
+        <h1 className="font-display text-2xl uppercase text-jet">Mover application</h1>
+        <p className="text-sm text-gray-600 mt-1">Complete your profile to start accepting jobs.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -97,35 +123,40 @@ export default function MoverApplicationPage() {
           error={errors.service_radius?.message}
           {...register('service_radius', { valueAsNumber: true })}
         />
-        <Input
+        <AddressAutocomplete
           label="Home base address"
-          placeholder="123 Depot St, Sydney NSW"
+          placeholder="123 Depot St, Newark NJ"
+          defaultValue={homeBaseAddress}
           error={errors.home_base_address?.message}
-          {...register('home_base_address')}
+          onPlaceSelected={({ address, lat, lng }) => {
+            setValue('home_base_address', address, { shouldValidate: true })
+            setValue('home_base_lat', lat, { shouldValidate: true })
+            setValue('home_base_lng', lng, { shouldValidate: true })
+          }}
         />
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Driver's licence (PDF or image)</label>
+          <label className="text-sm font-condensed font-bold uppercase tracking-wider text-jet">Driver&apos;s licence (PDF or image)</label>
           <input
             type="file"
             accept="image/*,.pdf"
             onChange={(e) => setLicenceFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+            className="text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-3 file:border-jet file:bg-caution file:font-bold file:uppercase file:text-xs"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Vehicle registration (PDF or image)</label>
+          <label className="text-sm font-condensed font-bold uppercase tracking-wider text-jet">Vehicle registration (PDF or image)</label>
           <input
             type="file"
             accept="image/*,.pdf"
             onChange={(e) => setRegFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+            className="text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-3 file:border-jet file:bg-caution file:font-bold file:uppercase file:text-xs"
           />
         </div>
 
-        {fileError && <p className="text-sm text-red-600">{fileError}</p>}
-        <Button type="submit" fullWidth loading={submitting}>Submit Application</Button>
+        {fileError && <p className="text-sm text-red-600 font-medium">{fileError}</p>}
+        <Button type="submit" fullWidth loading={submitting}>Submit application ▸</Button>
       </form>
     </div>
   )

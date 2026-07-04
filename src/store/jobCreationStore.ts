@@ -18,6 +18,7 @@ interface JobCreationStore extends JobCreationState {
   updateItem: (id: string, data: Partial<DraftJobItem>) => void
   removeItem: (id: string) => void
   setQuote: (quote: PriceQuote) => void
+  setPromoCode: (code: string) => void
   reset: () => void
 }
 
@@ -33,6 +34,7 @@ const initial: JobCreationState = {
   notes: '',
   items: [],
   quote: null,
+  promo_code: '',
 }
 
 export const useJobCreationStore = create<JobCreationStore>()(
@@ -49,6 +51,7 @@ export const useJobCreationStore = create<JobCreationStore>()(
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
       setQuote: (quote) => set({ quote }),
+      setPromoCode: (promo_code) => set({ promo_code }),
       reset: () => set(initial),
     }),
     { name: 'movethisout-job-draft' }

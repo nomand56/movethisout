@@ -16,8 +16,8 @@ export default function SignaturePad({ onSave }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Requester signature</p>
-      <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 touch-none">
+      <p className="text-sm text-gray-600 font-medium">Requester signature</p>
+      <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white touch-none">
         <ReactSignatureCanvas
           ref={sigRef}
           canvasProps={{ width: 340, height: 180, className: 'w-full' }}

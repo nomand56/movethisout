@@ -1,23 +1,28 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
-import { getCallerProfile } from '../_shared/auth.ts'
+import { getOptionalCallerProfile } from '../_shared/auth.ts'
 
 interface ItemInput { size: 'small' | 'medium' | 'large' | 'extra_large'; quantity: number }
 
 function isValidLat(v: unknown) { return typeof v === 'number' && v >= -90 && v <= 90 }
 function isValidLng(v: unknown) { return typeof v === 'number' && v >= -180 && v <= 180 }
 
-// FR-504: peak = morning slots on weekends, evening slots on any day.
-function isPeak(scheduledDate: string, timeWindow: string) {
-  const day = new Date(`${scheduledDate}T00:00:00Z`).getUTCDay() // 0 = Sunday, 6 = Saturday
+// FR-504: peak rules configurable via pricing_config.
+function isPeak(
+  scheduledDate: string,
+  timeWindow: string,
+  pricing: { peak_weekend_morning?: boolean; peak_evening?: boolean },
+) {
+  const day = new Date(`${scheduledDate}T00:00:00Z`).getUTCDay()
   const isWeekend = day === 0 || day === 6
-  return (timeWindow === 'morning' && isWeekend) || timeWindow === 'evening'
+  const weekendMorning = pricing.peak_weekend_morning !== false && timeWindow === 'morning' && isWeekend
+  const evening = pricing.peak_evening !== false && timeWindow === 'evening'
+  return weekendMorning || evening
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const { profile, admin, error: authError } = await getCallerProfile(req)
-  if (authError || !profile || !admin) return jsonResponse({ error: authError ?? 'Unauthorized' }, 401)
+  const { profile, admin } = await getOptionalCallerProfile(req)
 
   let body: {
     pickup_lat: number; pickup_lng: number
@@ -26,6 +31,7 @@ Deno.serve(async (req) => {
     scheduled_date: string
     time_window: 'morning' | 'afternoon' | 'evening'
     apply_credit?: boolean
+    promo_code?: string
   }
   try {
     body = await req.json()
@@ -33,7 +39,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, items, scheduled_date, time_window, apply_credit } = body
+  const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, items, scheduled_date, time_window, apply_credit, promo_code } = body
 
   // SEC-402: validate coordinates before calling out to Google.
   if (!isValidLat(pickup_lat) || !isValidLng(pickup_lng) || !isValidLat(dropoff_lat) || !isValidLng(dropoff_lng)) {
@@ -74,7 +80,7 @@ Deno.serve(async (req) => {
     items.reduce((sum, item) => sum + (sizeRate[item.size] ?? 0) * item.quantity, 0) * 100
   ) / 100
   const subtotal = base_price + item_cost
-  const peak = isPeak(scheduled_date, time_window)
+  const peak = isPeak(scheduled_date, time_window, pricing)
   const time_multiplier = peak ? Number(pricing.peak_multiplier) : 1.0
   const subtotal_before_credit = Math.round(subtotal * time_multiplier * 100) / 100
 
@@ -85,11 +91,37 @@ Deno.serve(async (req) => {
   const mover_payout = Math.round((subtotal_before_credit - platform_fee) * 100) / 100
 
   let credit_applied = 0
-  if (apply_credit) {
+  if (apply_credit && profile) {
     const { data: freshProfile } = await admin.from('profiles').select('account_credit').eq('id', profile.id).single()
     credit_applied = Math.min(Number(freshProfile?.account_credit ?? 0), subtotal_before_credit)
   }
-  const quoted_price = Math.round((subtotal_before_credit - credit_applied) * 100) / 100
+
+  let promo_discount = 0
+  let promo_code_applied: string | null = null
+  if (promo_code && typeof promo_code === 'string' && promo_code.trim()) {
+    const code = promo_code.trim().toUpperCase()
+    const { data: promo } = await admin
+      .from('promo_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('active', true)
+      .maybeSingle()
+    if (promo) {
+      const expired = promo.valid_until && new Date(promo.valid_until) < new Date()
+      const maxed = promo.max_uses != null && promo.uses_count >= promo.max_uses
+      if (!expired && !maxed) {
+        if (promo.discount_type === 'percent') {
+          promo_discount = Math.round(subtotal_before_credit * (Number(promo.discount_value) / 100) * 100) / 100
+        } else {
+          promo_discount = Number(promo.discount_value)
+        }
+        promo_discount = Math.min(promo_discount, subtotal_before_credit - credit_applied)
+        promo_code_applied = code
+      }
+    }
+  }
+
+  const quoted_price = Math.round((subtotal_before_credit - credit_applied - promo_discount) * 100) / 100
 
   return jsonResponse({
     quoted_price,
@@ -101,6 +133,8 @@ Deno.serve(async (req) => {
     time_multiplier,
     is_peak: peak,
     credit_applied,
+    promo_discount,
+    promo_code: promo_code_applied,
     subtotal_before_credit,
   })
 })

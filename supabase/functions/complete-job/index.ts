@@ -1,6 +1,8 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { getCallerProfile } from '../_shared/auth.ts'
 import { sendSmsBestEffort } from '../_shared/sms.ts'
+import { insertNotification } from '../_shared/notifications.ts'
+import { sendPushBestEffort } from '../_shared/push.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -40,6 +42,16 @@ Deno.serve(async (req) => {
   if (updateError || !updated) return jsonResponse({ error: 'Could not complete job' }, 500)
 
   await sendSmsBestEffort(admin, updated.requester_id, 'Your MoveThisOut job is complete! Please leave a review in the app.')
+  await sendPushBestEffort(admin, updated.requester_id, {
+    title: 'Move complete',
+    body: 'Your job is done — leave a review!',
+    url: `/app/jobs/${updated.id}`,
+  })
+
+  await insertNotification(admin, updated.requester_id, 'Move complete', 'Your job is done — leave a review!', `/app/jobs/${updated.id}`)
+  if (updated.mover_id) {
+    await insertNotification(admin, updated.mover_id, 'Job completed', `Payout of $${Number(updated.mover_payout).toFixed(2)} recorded.`, `/mover/dashboard`)
+  }
 
   // Referral payout: if this is the requester's first ever completed job and
   // they were referred, credit both sides. Isolated in its own try/catch so

@@ -3,10 +3,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { supabase } from '../../lib/supabase'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
+import HazardStripe from '../../components/brand/HazardStripe'
+import Wordmark from '../../components/brand/Wordmark'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -15,7 +16,6 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
-  const { t } = useTranslation()
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setServerError('')
     const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
     if (error) {
-      setServerError(t('auth.login.server_error'))
+      setServerError('Invalid email or password.')
       return
     }
     navigate('/')
@@ -40,46 +40,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">{t('auth.login.title')}</h1>
-        <p className="text-gray-500 text-center mb-8 text-sm">{t('auth.login.subtitle')}</p>
+    <div className="min-h-screen flex flex-col bg-white">
+      <div className="bg-haul px-4 py-8">
+        <Wordmark variant="billboard" className="mb-1" />
+        <p className="font-condensed font-bold text-jet uppercase tracking-wide">Sign in to track your move</p>
+      </div>
+      <HazardStripe />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Input
-            label={t('auth.login.email_label')}
-            type="email"
-            autoComplete="email"
-            placeholder={t('auth.login.email_placeholder')}
-            error={errors.email?.message}
-            {...register('email')}
-          />
-          <Input
-            label={t('auth.login.password_label')}
-            type="password"
-            autoComplete="current-password"
-            placeholder={t('auth.login.password_placeholder')}
-            error={errors.password?.message}
-            {...register('password')}
-          />
-          {serverError && <p className="text-sm text-red-600 text-center">{serverError}</p>}
-          <Button type="submit" fullWidth loading={isSubmitting}>{t('auth.login.submit')}</Button>
-        </form>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm card-yard p-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <Input label="Email" type="email" autoComplete="email" placeholder="you@email.com" error={errors.email?.message} {...register('email')} />
+            <Input label="Password" type="password" autoComplete="current-password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
+            {serverError && <p className="text-sm text-red-600 text-center font-medium">{serverError}</p>}
+            <Button type="submit" fullWidth loading={isSubmitting}>Sign in ▸</Button>
+          </form>
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-          <span className="text-xs text-gray-400">{t('auth.login.divider_or')}</span>
-          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-0.5 bg-jet" />
+            <span className="text-xs font-condensed font-bold uppercase text-gray-400">Or</span>
+            <div className="flex-1 h-0.5 bg-jet" />
+          </div>
+
+          <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>Google</Button>
+
+          <p className="text-center text-sm text-gray-600 mt-6">
+            New here?{' '}
+            <Link to="/register?role=requester" className="text-haul font-bold hover:underline">Book a move</Link>
+            {' · '}
+            <Link to="/register?role=mover" className="text-haul font-bold hover:underline">Drive</Link>
+          </p>
         </div>
-
-        <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>{t('auth.login.google')}</Button>
-
-        <p className="text-center text-sm text-gray-500 mt-6">
-          {t('auth.login.no_account')}{' '}
-          <Link to="/register?role=requester" className="text-brand-500 font-medium hover:underline">{t('auth.login.signup_requester')}</Link>
-          {t('auth.login.signup_mover_prefix')}
-          <Link to="/register?role=mover" className="text-brand-500 font-medium hover:underline">{t('auth.login.signup_mover')}</Link>
-        </p>
       </div>
     </div>
   )

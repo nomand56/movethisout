@@ -1,22 +1,19 @@
-import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { StatusBadge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
-import { Star, Zap, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { requestPushPermission } from '../../hooks/usePushNotifications'
 import type { Job, MoverProfile } from '../../types'
 
 export default function MoverDashboard() {
   const { profile } = useAuthStore()
-  const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const { data: moverProfile, isFetched: moverProfileFetched } = useQuery({
+  const { data: moverProfile, isLoading } = useQuery({
     queryKey: ['mover-profile-self', profile?.id],
     queryFn: async () => {
       const { data } = await supabase.from('mover_profiles').select('*').eq('id', profile!.id).maybeSingle()
@@ -25,14 +22,19 @@ export default function MoverDashboard() {
     enabled: !!profile,
   })
 
-  // Redirect pending / not-yet-applied movers
-  const [checked, setChecked] = useState(false)
-  useEffect(() => {
-    if (!moverProfileFetched) return
-    if (!moverProfile || !moverProfile.licence_url) navigate('/mover/application', { replace: true })
-    else if (moverProfile.status === 'pending') navigate('/mover/pending', { replace: true })
-    else setChecked(true)
-  }, [moverProfile, moverProfileFetched, navigate])
+  const { data: earnings } = useQuery({
+    queryKey: ['mover-payouts', profile?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('mover_payouts')
+        .select('*, job:jobs(scheduled_date)')
+        .eq('mover_id', profile!.id)
+        .order('created_at', { ascending: false })
+        .limit(8)
+      return data ?? []
+    },
+    enabled: !!profile,
+  })
 
   const { data: activeJob } = useQuery({
     queryKey: ['mover-active-job', profile?.id],
@@ -52,79 +54,80 @@ export default function MoverDashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mover-profile-self', profile?.id] }),
   })
 
-  if (!moverProfile || !checked) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>
+  if (isLoading || !moverProfile) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>
+
+  const totalEarned = earnings?.filter((e) => e.status !== 'cancelled').reduce((s, e) => s + Number(e.amount), 0) ?? 0
+  const pendingPayout = earnings?.filter((e) => e.status === 'pending').reduce((s, e) => s + Number(e.amount), 0) ?? 0
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-          <p className="text-sm text-gray-500">Welcome, {profile?.full_name?.split(' ')[0]}</p>
+          <h1 className="font-display text-3xl uppercase">Hey {profile?.full_name?.split(' ')[0]}</h1>
+          <p className="text-sm text-gray-600">Your truck. Your hours. Your town.</p>
         </div>
-        {/* Online/Offline toggle */}
         <button
           onClick={() => toggleOnline.mutate(!moverProfile.is_online)}
           disabled={toggleOnline.isPending}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition ${
-            moverProfile.is_online
-              ? 'bg-green-500 text-white hover:bg-green-600'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+          className={`border-3 border-jet px-4 py-2 font-condensed font-bold text-sm uppercase tracking-wider shadow-hard-sm transition ${
+            moverProfile.is_online ? 'bg-haul text-white' : 'bg-white text-jet'
           }`}
         >
-          <span className={`h-2 w-2 rounded-full ${moverProfile.is_online ? 'bg-white animate-pulse' : 'bg-gray-400'}`} />
-          {moverProfile.is_online ? 'Online' : 'Offline'}
+          {moverProfile.is_online ? '● Online' : 'Go online'}
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
-          <div className="flex items-center gap-2 mb-1">
-            <CheckCircle size={16} className="text-green-500" />
-            <span className="text-xs text-gray-500">Completed</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{moverProfile.total_jobs}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="card-yard p-3 text-center bg-concrete">
+          <p className="price-hero text-2xl">{moverProfile.total_jobs}</p>
+          <p className="font-condensed text-[10px] font-bold uppercase tracking-wider text-gray-500">Jobs</p>
         </div>
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
-          <div className="flex items-center gap-2 mb-1">
-            <Star size={16} className="text-yellow-400 fill-yellow-400" />
-            <span className="text-xs text-gray-500">Rating</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {moverProfile.avg_rating ? moverProfile.avg_rating.toFixed(1) : '—'}
-          </p>
+        <div className="card-yard p-3 text-center bg-concrete">
+          <p className="price-hero text-2xl">{moverProfile.avg_rating ? moverProfile.avg_rating.toFixed(1) : '—'}</p>
+          <p className="font-condensed text-[10px] font-bold uppercase tracking-wider text-gray-500">Rating</p>
+        </div>
+        <div className="card-yard p-3 text-center bg-caution">
+          <p className="price-hero text-2xl">${totalEarned.toFixed(0)}</p>
+          <p className="font-condensed text-[10px] font-bold uppercase tracking-wider text-jet">Earned</p>
+          {pendingPayout > 0 && <p className="text-[10px] text-gray-600 mt-1">${pendingPayout.toFixed(0)} pending</p>}
         </div>
       </div>
 
-      {/* Active job */}
       {activeJob && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Zap size={16} className="text-orange-500" />
-            <span className="font-semibold text-orange-700 dark:text-orange-400 text-sm">Active Job</span>
+        <div className="card-yard overflow-hidden border-haul">
+          <div className="bg-haul text-white px-4 py-2 flex justify-between items-center">
+            <span className="font-condensed font-bold text-sm uppercase tracking-widest">Active delivery</span>
             <StatusBadge status={activeJob.status} />
           </div>
-          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">{activeJob.pickup_address}</p>
-          <p className="text-xs text-gray-500 truncate">→ {activeJob.dropoff_address}</p>
-          <p className="text-xs text-gray-400 mt-1">{format(new Date(activeJob.scheduled_date), 'EEE, dd MMM')}</p>
-          <Link to="/mover/active">
-            <Button size="sm" fullWidth className="mt-3">Continue Job</Button>
-          </Link>
+          <div className="p-4">
+            <p className="font-bold text-sm truncate">{activeJob.pickup_address}</p>
+            <p className="font-condensed text-sm uppercase text-gray-600 truncate">▸ {activeJob.dropoff_address}</p>
+            <p className="price-hero text-3xl text-haul mt-2">${activeJob.mover_payout?.toFixed(0)}</p>
+            <Link to="/mover/active"><Button fullWidth className="mt-3">Continue ▸</Button></Link>
+          </div>
         </div>
       )}
 
       {!activeJob && moverProfile.is_online && (
-        <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
-          <p className="text-gray-500 text-sm mb-3">You're online! Browse available jobs.</p>
-          <Link to="/mover/jobs">
-            <Button>View Request Center</Button>
-          </Link>
-        </div>
+        <Link to="/mover/jobs"><Button fullWidth size="lg">See available jobs ▸</Button></Link>
       )}
 
       {!moverProfile.is_online && !activeJob && (
-        <div className="text-center py-8 bg-gray-100 dark:bg-gray-800/50 rounded-2xl">
-          <p className="text-gray-500 text-sm">You're offline. Toggle online to start receiving jobs.</p>
+        <div className="card-yard p-6 text-center bg-concrete">
+          <p className="font-display text-lg uppercase mb-1">You&apos;re offline</p>
+          <p className="text-sm text-gray-600">Tap Go online to start earning.</p>
+        </div>
+      )}
+
+      {earnings && earnings.length > 0 && (
+        <div className="card-yard p-4">
+          <p className="font-condensed font-bold text-sm uppercase tracking-widest mb-3">Recent payouts</p>
+          {earnings.map((e: { id: string; amount: number; status: string; job?: { scheduled_date: string } }) => (
+            <div key={e.id} className="flex justify-between text-sm py-1 border-b border-concrete last:border-0">
+              <span className="text-gray-600 capitalize">{e.status}{e.job?.scheduled_date ? ` · ${format(new Date(e.job.scheduled_date), 'dd MMM')}` : ''}</span>
+              <span className="font-bold text-haul">${Number(e.amount).toFixed(2)}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

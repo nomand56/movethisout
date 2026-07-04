@@ -1,22 +1,31 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  darkMode: 'media',
   theme: {
     extend: {
       colors: {
+        haul: '#F25800',
+        'haul-hot': '#FF6A00',
+        jet: '#141414',
+        caution: '#FFC400',
+        concrete: '#EFEDEA',
         brand: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
+          DEFAULT: '#F25800',
+          500: '#F25800',
+          600: '#E04F00',
         },
+      },
+      fontFamily: {
+        display: ['Anton', 'Impact', 'sans-serif'],
+        condensed: ['"Barlow Condensed"', 'sans-serif'],
+        sans: ['Barlow', '-apple-system', 'Arial', 'sans-serif'],
+      },
+      boxShadow: {
+        hard: '4px 4px 0 #141414',
+        'hard-sm': '3px 3px 0 #141414',
+      },
+      borderWidth: {
+        3: '3px',
       },
     },
   },

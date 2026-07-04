@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { normalizeProfile } from './lib/profile'
 import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/authStore'
 import { consumePostAuthRedirect } from './lib/postAuthRedirect'
@@ -43,8 +44,12 @@ import ActiveJobPage from './pages/mover/ActiveJobPage'
 import AdminDashboard from './pages/admin/DashboardPage'
 import ApprovalQueuePage from './pages/admin/ApprovalQueuePage'
 import AdminJobsPage from './pages/admin/JobsPage'
+import AdminJobDetailPage from './pages/admin/JobDetailPage'
 import AdminUsersPage from './pages/admin/UsersPage'
 import RevenuePage from './pages/admin/RevenuePage'
+import AdminPricingPage from './pages/admin/PricingPage'
+import MoverRouteGuard from './components/auth/MoverRouteGuard'
+import InstallPrompt from './components/pwa/InstallPrompt'
 
 function RootRedirect() {
   const { profile, loading } = useAuthStore()
@@ -69,7 +74,7 @@ export default function App() {
       setSession(session)
       if (session) {
         const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
-        setProfile(data)
+        setProfile(normalizeProfile(data))
       }
       setLoading(false)
     })
@@ -78,7 +83,7 @@ export default function App() {
       setSession(session)
       if (session) {
         const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
-        setProfile(data)
+        setProfile(normalizeProfile(data))
       } else {
         setProfile(null)
       }
@@ -91,6 +96,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <OfflineBanner />
+        <InstallPrompt />
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<LoginPage />} />
@@ -98,7 +104,11 @@ export default function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/welcome" element={<ChooseRoleInterstitial />} />
-          <Route path="/book" element={<BookingWizardShell authRequired={false} />} />
+          <Route path="/book" element={
+            <div className="min-h-screen bg-white max-w-lg mx-auto px-4 py-5">
+              <BookingWizardShell authRequired={false} />
+            </div>
+          } />
 
           {/* Requester */}
           <Route element={<ProtectedRoute role="requester" />}>
@@ -113,13 +123,15 @@ export default function App() {
           {/* Mover */}
           <Route element={<ProtectedRoute role="mover" />}>
             <Route element={<MoverLayout />}>
-              <Route path="/mover/dashboard" element={<MoverDashboard />} />
+              <Route element={<MoverRouteGuard />}>
+                <Route path="/mover/dashboard" element={<MoverDashboard />} />
+                <Route path="/mover/jobs" element={<RequestCenterPage />} />
+                <Route path="/mover/jobs/:id" element={<MoverJobDetail />} />
+                <Route path="/mover/active" element={<ActiveJobPage />} />
+                <Route path="/mover/settings" element={<SettingsPage />} />
+              </Route>
               <Route path="/mover/application" element={<MoverApplicationPage />} />
               <Route path="/mover/pending" element={<MoverPendingPage />} />
-              <Route path="/mover/jobs" element={<RequestCenterPage />} />
-              <Route path="/mover/jobs/:id" element={<MoverJobDetail />} />
-              <Route path="/mover/active" element={<ActiveJobPage />} />
-              <Route path="/mover/settings" element={<SettingsPage />} />
             </Route>
           </Route>
 
@@ -129,8 +141,10 @@ export default function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/approvals" element={<ApprovalQueuePage />} />
               <Route path="/admin/jobs" element={<AdminJobsPage />} />
+              <Route path="/admin/jobs/:id" element={<AdminJobDetailPage />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/admin/revenue" element={<RevenuePage />} />
+              <Route path="/admin/pricing" element={<AdminPricingPage />} />
             </Route>
           </Route>
 

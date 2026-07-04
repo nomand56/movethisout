@@ -1,13 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Barlow+Condensed:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  html,
+  html.light {
+    color-scheme: light only;
+  }
+  html.dark {
+    color-scheme: light only;
+  }
   * {
     -webkit-tap-highlight-color: transparent;
   }
+  body,
+  #root {
+    @apply font-sans text-jet bg-white min-h-screen;
+  }
   body {
-    @apply text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-950;
-    font-size: 16px;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    @apply text-jet;
+  }
+}
+
+@layer components {
+  .hazard-stripe {
+    height: 10px;
+    background: repeating-linear-gradient(-45deg, #F25800 0 14px, #141414 14px 28px);
+  }
+
+  .card-yard {
+    @apply border-3 border-jet bg-white shadow-hard;
+  }
+
+  .price-hero {
+    @apply font-condensed font-extrabold text-haul leading-none tracking-tight;
   }
 }

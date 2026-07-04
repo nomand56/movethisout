@@ -64,13 +64,13 @@ export default function MoverJobDetailPage() {
         <StatusBadge status={job.status} />
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+      <div className="card-yard divide-y divide-gray-100">
         <div className="p-4">
           <div className="flex items-start gap-2">
-            <MapPin size={16} className="text-brand-500 mt-0.5 flex-shrink-0" />
+            <MapPin size={16} className="text-haul mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-500">Pickup</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{job.pickup_address}</p>
+              <p className="text-sm font-medium text-jet">{job.pickup_address}</p>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function MoverJobDetailPage() {
             <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-500">Drop-off</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{job.dropoff_address}</p>
+              <p className="text-sm font-medium text-jet">{job.dropoff_address}</p>
             </div>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function MoverJobDetailPage() {
             <Clock size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-500">Date & Time</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <p className="text-sm font-medium text-jet">
                 {format(new Date(job.scheduled_date), 'dd MMM')} · {TIME_LABELS[job.time_window]}
               </p>
             </div>
@@ -97,7 +97,7 @@ export default function MoverJobDetailPage() {
             <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-500">Distance</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{job.distance_km ?? '—'} km</p>
+              <p className="text-sm font-medium text-jet">{job.distance_km ?? '—'} km</p>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function MoverJobDetailPage() {
             <DollarSign size={16} className="text-green-500 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-500">Your payout</p>
-              <p className="text-lg font-bold text-green-600 dark:text-green-400">${job.mover_payout?.toFixed(2) ?? '—'}</p>
+              <p className="text-lg font-bold text-green-600">${job.mover_payout?.toFixed(2) ?? '—'}</p>
             </div>
           </div>
         </div>
@@ -116,48 +116,47 @@ export default function MoverJobDetailPage() {
       {job.status !== 'open' && (
         <button
           onClick={() => setShowChat(true)}
-          className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 text-left hover:shadow-md transition"
+          className="flex items-center gap-2 card-yard p-4 text-left hover:shadow-md transition"
         >
-          <MessageCircle size={18} className="text-brand-500" />
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Messages</span>
+          <MessageCircle size={18} className="text-haul" />
+          <span className="text-sm font-medium text-jet">Messages</span>
           <ChatUnreadDot jobId={id!} />
         </button>
       )}
 
       {/* Items */}
       {job.items && job.items.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+        <div className="card-yard p-4">
           <div className="flex items-center gap-2 mb-3">
             <Package size={16} className="text-gray-400" />
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Items ({job.items.reduce((s, i) => s + i.quantity, 0)})</p>
+            <p className="text-sm font-medium text-jet">Items ({job.items.reduce((s, i) => s + i.quantity, 0)})</p>
           </div>
           {job.items.map((item) => (
-            <div key={item.id} className="flex justify-between text-sm py-1">
-              <span className="text-gray-900 dark:text-gray-100">{item.name} × {item.quantity}</span>
-              <span className="text-gray-400 capitalize">{item.size.replace('_', ' ')}</span>
+            <div key={item.id} className="flex justify-between items-center text-sm py-1 gap-2">
+              <div>
+                <span className="text-jet">{item.name} × {item.quantity}</span>
+                <span className="text-gray-400 capitalize ml-2">{item.size.replace('_', ' ')}</span>
+              </div>
+              {item.photo_url && (
+                <img src={item.photo_url} alt={item.name} className="h-10 w-10 rounded-lg object-cover" />
+              )}
             </div>
           ))}
         </div>
       )}
 
       {job.notes && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl p-4">
-          <p className="text-xs text-yellow-700 dark:text-yellow-400 font-semibold mb-1">Notes from requester</p>
-          <p className="text-sm text-gray-900 dark:text-gray-100">{job.notes}</p>
+        <div className="card-yard bg-caution p-4">
+          <p className="text-xs text-yellow-700 font-semibold mb-1">Notes from requester</p>
+          <p className="text-sm text-jet">{job.notes}</p>
         </div>
       )}
 
       {claimError && <p className="text-sm text-red-600 text-center">{claimError}</p>}
 
       {job.status === 'open' && (
-        <Button
-          fullWidth
-          size="lg"
-          loading={claimMutation.isPending}
-          disabled={hasActiveJob}
-          onClick={() => claimMutation.mutate()}
-        >
-          {hasActiveJob ? 'You have an active job' : 'Claim this Job'}
+        <Button fullWidth size="lg" loading={claimMutation.isPending} disabled={hasActiveJob} onClick={() => claimMutation.mutate()}>
+          {hasActiveJob ? 'Finish current job first' : 'Accept job ▸'}
         </Button>
       )}
       {hasActiveJob && job.status === 'open' && (

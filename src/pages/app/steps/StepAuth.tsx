@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../lib/supabase'
 import { setPostAuthRedirect } from '../../../lib/postAuthRedirect'
 import Input from '../../../components/ui/Input'
@@ -14,7 +14,11 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function StepAuth() {
+interface Props {
+  onBack?: () => void
+}
+
+export default function StepAuth({ onBack }: Props) {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState('')
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -28,6 +32,7 @@ export default function StepAuth() {
       setServerError('Invalid email or password.')
       return
     }
+    // BookingWizardShell picks up profile change → fetches price → confirm step
   }
 
   const handleCreateAccount = () => {
@@ -44,18 +49,20 @@ export default function StepAuth() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div>
-        <h2 className="font-semibold text-gray-900 dark:text-gray-100">Sign in to confirm your booking</h2>
-        <p className="text-sm text-gray-500 mt-1">You're almost done — sign in or create an account to complete your booking.</p>
+        <h2 className="font-display text-2xl uppercase text-jet">Sign in to book</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          You&apos;re almost done. Sign in or create an account — then you&apos;ll see your price and pay.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 card-yard p-5">
         <Input
           label="Email"
           type="email"
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder="you@email.com"
           error={errors.email?.message}
           {...register('email')}
         />
@@ -67,24 +74,35 @@ export default function StepAuth() {
           error={errors.password?.message}
           {...register('password')}
         />
-        {serverError && <p className="text-sm text-red-600 text-center">{serverError}</p>}
-        <Button type="submit" fullWidth loading={isSubmitting}>Sign In</Button>
+        {serverError && <p className="text-sm text-red-600 text-center font-medium">{serverError}</p>}
+        <Button type="submit" fullWidth loading={isSubmitting}>Sign in ▸</Button>
       </form>
 
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-        <span className="text-xs text-gray-400">or</span>
-        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+        <div className="flex-1 h-0.5 bg-jet" />
+        <span className="text-xs font-condensed font-bold uppercase text-gray-400">Or</span>
+        <div className="flex-1 h-0.5 bg-jet" />
       </div>
 
-      <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>Continue with Google</Button>
+      <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>Google</Button>
 
-      <div className="text-center text-sm text-gray-500">
-        New here?{' '}
-        <button type="button" onClick={handleCreateAccount} className="text-brand-500 font-medium hover:underline">
-          Create an account
-        </button>
+      <div className="card-yard p-4 bg-concrete text-center">
+        <p className="text-sm text-jet mb-3">New here?</p>
+        <Button type="button" variant="deal" fullWidth onClick={handleCreateAccount}>
+          Create account ▸
+        </Button>
       </div>
+
+      {onBack && (
+        <Button variant="ghost" fullWidth onClick={onBack}>← Back to review</Button>
+      )}
+
+      <p className="text-center text-sm text-gray-500">
+        Already have an account?{' '}
+        <Link to="/login" className="text-haul font-bold hover:underline" onClick={() => setPostAuthRedirect('/book')}>
+          Sign in on full page
+        </Link>
+      </p>
     </div>
   )
 }

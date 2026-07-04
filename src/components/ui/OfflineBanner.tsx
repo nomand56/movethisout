@@ -5,9 +5,9 @@ export default function OfflineBanner() {
   const online = useOnlineStatus()
   if (online) return null
   return (
-    <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-red-600 text-white text-sm font-medium py-2 px-4">
+    <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-jet text-white text-sm font-condensed font-bold uppercase tracking-wider py-2 px-4 border-b-3 border-haul">
       <WifiOff size={16} />
-      You are offline — some features may be unavailable
+      You&apos;re offline — some features may not work
     </div>
   )
 }

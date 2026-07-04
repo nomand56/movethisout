@@ -3,12 +3,12 @@ import { Clock } from 'lucide-react'
 export default function MoverPendingPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      <div className="w-20 h-20 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mb-4">
-        <Clock size={36} className="text-yellow-500" />
+      <div className="w-20 h-20 border-3 border-jet bg-caution flex items-center justify-center mb-4">
+        <Clock size={36} className="text-jet" />
       </div>
-      <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Application Under Review</h1>
-      <p className="text-gray-500 max-w-sm">
-        Your mover application is being reviewed by our team. We'll email you when it's approved — this usually takes 1–2 business days.
+      <h1 className="font-display text-xl uppercase mb-2">Application under review</h1>
+      <p className="text-gray-600 max-w-sm text-sm">
+        Your mover application is being reviewed by our team. We&apos;ll email you when it&apos;s approved — usually 1–2 business days.
       </p>
     </div>
   )

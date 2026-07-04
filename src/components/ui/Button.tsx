@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react'
 import { clsx } from '../../lib/clsx'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'deal'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   fullWidth?: boolean
@@ -10,19 +10,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', size = 'md', loading, fullWidth, className, children, disabled, ...props }, ref) => {
-    const base = 'inline-flex items-center justify-center font-semibold rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
+    const base =
+      'inline-flex items-center justify-center font-sans font-extrabold uppercase tracking-wide border-3 border-jet transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-haul disabled:opacity-50 disabled:pointer-events-none'
 
     const variants = {
-      primary: 'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700',
-      danger: 'bg-red-600 text-white hover:bg-red-700',
-      ghost: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
+      primary: 'bg-haul text-white shadow-hard hover:bg-haul-hot active:translate-x-px active:translate-y-px active:shadow-none',
+      secondary: 'bg-white text-jet hover:bg-concrete',
+      deal: 'bg-caution text-jet shadow-hard hover:brightness-105',
+      danger: 'bg-red-600 text-white border-red-800',
+      ghost: 'border-transparent text-jet hover:bg-concrete shadow-none',
     }
 
     const sizes = {
-      sm: 'text-sm px-3 py-2 min-h-[36px]',
-      md: 'text-base px-4 py-3 min-h-[44px]',
-      lg: 'text-lg px-6 py-4 min-h-[52px]',
+      sm: 'text-sm px-3 py-2 min-h-[40px]',
+      md: 'text-base px-4 py-3 min-h-[48px]',
+      lg: 'text-lg px-6 py-4 min-h-[56px]',
     }
 
     return (
@@ -41,7 +43,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     )
-  }
+  },
 )
 Button.displayName = 'Button'
 export default Button

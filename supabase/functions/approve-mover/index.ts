@@ -1,23 +1,7 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
 import { getCallerProfile } from '../_shared/auth.ts'
 import { sendSmsBestEffort } from '../_shared/sms.ts'
-
-async function sendEmail(to: string, subject: string, html: string) {
-  const apiKey = Deno.env.get('RESEND_API_KEY')
-  if (!apiKey) {
-    console.warn('RESEND_API_KEY not set — skipping email send')
-    return
-  }
-  try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'MoveThisOut <no-reply@movethisout.app>', to, subject, html }),
-    })
-  } catch (err) {
-    console.error('Failed to send email', err)
-  }
-}
+import { sendEmail } from '../_shared/email.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })

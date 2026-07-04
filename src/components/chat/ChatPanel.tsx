@@ -80,7 +80,7 @@ export default function ChatPanel({ jobId, canSend }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 max-h-80 overflow-y-auto rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-3">
+      <div className="flex flex-col gap-2 max-h-80 overflow-y-auto card-yard bg-concrete p-3">
         {isLoading && (
           <div className="flex justify-center py-6"><Spinner className="h-6 w-6" /></div>
         )}
@@ -92,14 +92,14 @@ export default function ChatPanel({ jobId, canSend }: Props) {
           return (
             <div key={m.id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                className={`max-w-[75%] px-3 py-2 text-sm border-3 ${
                   own
-                    ? 'bg-brand-500 text-white'
-                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-100 dark:border-gray-800'
+                    ? 'bg-haul text-white border-jet'
+                    : 'bg-white text-jet border-jet'
                 }`}
               >
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                <p className={`text-[10px] mt-1 ${own ? 'text-brand-100' : 'text-gray-400'}`}>
+                <p className={`text-[10px] mt-1 ${own ? 'text-white/70' : 'text-gray-400'}`}>
                   {format(new Date(m.created_at), 'dd MMM HH:mm')}
                 </p>
               </div>
@@ -117,7 +117,7 @@ export default function ChatPanel({ jobId, canSend }: Props) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Type a message…"
             maxLength={2000}
-            className="flex-1 rounded-xl border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="flex-1 border-3 border-jet px-4 py-2.5 text-sm bg-white text-jet focus:outline-none focus:ring-2 focus:ring-haul"
           />
           <Button type="submit" size="sm" loading={sending} disabled={!text.trim()}>
             Send

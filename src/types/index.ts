@@ -55,6 +55,10 @@ export interface Job {
   signature_url: string | null
   cancel_reason: string | null
   credit_applied?: number | null
+  promo_code?: string | null
+  promo_discount?: number | null
+  paid_at?: string | null
+  payment_method?: string | null
   created_at: string
   updated_at: string
   requester?: Profile
@@ -109,6 +113,42 @@ export interface PricingConfig {
   peak_multiplier: number
   commission_rate: number
   referral_credit_amount: number
+  cancel_fee_open?: number
+  support_email?: string
+  support_phone?: string
+  peak_weekend_morning?: boolean
+  peak_evening?: boolean
+}
+
+export interface SavedAddress {
+  id: string
+  user_id: string
+  label: string
+  address: string
+  lat: number
+  lng: number
+  is_default: boolean
+  created_at: string
+}
+
+export interface AppNotification {
+  id: string
+  user_id: string
+  title: string
+  body: string
+  url: string | null
+  read_at: string | null
+  created_at: string
+}
+
+export interface MoverPayout {
+  id: string
+  mover_id: string
+  job_id: string
+  amount: number
+  status: 'pending' | 'paid' | 'cancelled'
+  paid_at: string | null
+  created_at: string
 }
 
 export interface JobStatusHistory {
@@ -147,6 +187,8 @@ export interface PriceQuote {
   time_multiplier: number
   is_peak: boolean
   credit_applied: number
+  promo_discount: number
+  promo_code: string | null
   subtotal_before_credit: number
 }
 
@@ -162,6 +204,7 @@ export interface JobCreationState {
   notes: string
   items: DraftJobItem[]
   quote: PriceQuote | null
+  promo_code: string
 }
 
 export interface DraftJobItem {

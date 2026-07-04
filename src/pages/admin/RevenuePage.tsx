@@ -62,7 +62,7 @@ export default function RevenuePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Revenue Dashboard</h1>
+      <h1 className="font-display text-2xl uppercase text-jet">Revenue Dashboard</h1>
 
       {/* Preset selector */}
       <div className="flex gap-2 flex-wrap">
@@ -70,7 +70,7 @@ export default function RevenuePage() {
           <button
             key={p.value}
             onClick={() => setPreset(p.value)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${preset === p.value ? 'bg-brand-500 text-white' : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brand-300'}`}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${preset === p.value ? 'bg-haul text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-haul'}`}
           >
             {p.label}
           </button>
@@ -78,9 +78,9 @@ export default function RevenuePage() {
         {preset === 'custom' && (
           <div className="flex gap-2">
             <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
-              className="rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              className="border-3 border-jet px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-haul" />
             <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
-              className="rounded-xl border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              className="border-3 border-jet px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-haul" />
           </div>
         )}
       </div>
@@ -96,17 +96,17 @@ export default function RevenuePage() {
           { label: 'Completed Jobs', value: count },
           { label: 'Avg Job Value', value: `$${avg.toFixed(2)}` },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+          <div key={label} className="card-yard p-4">
             <p className="text-xs text-gray-500 mb-1">{label}</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+            <p className="font-display text-2xl uppercase text-jet">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Chart */}
       {chartData.length > 1 && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Revenue by Day</p>
+        <div className="card-yard p-6">
+          <p className="text-sm font-medium text-gray-700 mb-4">Revenue by Day</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />

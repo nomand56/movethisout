@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function ProtectedRoute({ role }: Props) {
-  const { profile, loading } = useAuthStore()
+  const { profile, session, loading } = useAuthStore()
 
   if (loading) {
     return (
@@ -20,12 +20,16 @@ export default function ProtectedRoute({ role }: Props) {
 
   if (!profile) return <Navigate to="/login" replace />
 
+  if (session && !session.user.email_confirmed_at) {
+    return <Navigate to="/verify-email" replace />
+  }
+
   if (profile.is_suspended) {
     return (
       <div className="flex h-screen items-center justify-center p-4">
-        <div className="max-w-sm text-center">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Account Suspended</h2>
-          <p className="text-gray-600 dark:text-gray-400">Your account has been suspended. Please contact support.</p>
+        <div className="max-w-sm text-center card-yard p-6">
+          <h2 className="font-display text-xl uppercase mb-2">Account suspended</h2>
+          <p className="text-gray-600 text-sm">Your account has been suspended. Please contact support.</p>
         </div>
       </div>
     )

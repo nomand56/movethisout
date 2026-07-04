@@ -9,6 +9,8 @@ import { setPostAuthRedirect } from '../../lib/postAuthRedirect'
 import { setReferralCode } from '../../lib/referralCapture'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
+import HazardStripe from '../../components/brand/HazardStripe'
+import Wordmark from '../../components/brand/Wordmark'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -57,41 +59,49 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-gray-100">{t('auth.register.title')}</h1>
-        <p className="text-gray-500 text-center mb-8 text-sm">
-          {t('auth.register.registering_as')} <span className="font-semibold text-brand-500 capitalize">{role}</span>
+    <div className="min-h-screen flex flex-col bg-white">
+      <div className="bg-haul px-4 py-8">
+        <Wordmark variant="billboard" className="mb-1" />
+        <p className="font-condensed font-bold text-jet uppercase tracking-wide">
+          {t('auth.register.registering_as')}{' '}
+          <span className="text-white capitalize">{role}</span>
         </p>
+      </div>
+      <HazardStripe />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <Input label={t('auth.register.full_name_label')} placeholder={t('auth.register.full_name_placeholder')} error={errors.full_name?.message} {...register('full_name')} />
-          <Input label={t('auth.register.email_label')} type="email" placeholder={t('auth.register.email_placeholder')} error={errors.email?.message} {...register('email')} />
-          <Input label={t('auth.register.phone_label')} type="tel" placeholder={t('auth.register.phone_placeholder')} error={errors.phone?.message} {...register('phone')} />
-          <Input
-            label={t('auth.register.password_label')}
-            type="password"
-            placeholder={t('auth.register.password_placeholder')}
-            error={errors.password?.message}
-            hint={t('auth.register.password_hint')}
-            {...register('password')}
-          />
-          {serverError && <p className="text-sm text-red-600 text-center">{serverError}</p>}
-          <Button type="submit" fullWidth loading={isSubmitting}>{t('auth.register.submit')}</Button>
-        </form>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm card-yard p-6">
+          <h1 className="font-display text-2xl uppercase text-center mb-6">{t('auth.register.title')}</h1>
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-          <span className="text-xs text-gray-400">{t('auth.register.divider_or')}</span>
-          <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <Input label={t('auth.register.full_name_label')} placeholder={t('auth.register.full_name_placeholder')} error={errors.full_name?.message} {...register('full_name')} />
+            <Input label={t('auth.register.email_label')} type="email" placeholder={t('auth.register.email_placeholder')} error={errors.email?.message} {...register('email')} />
+            <Input label={t('auth.register.phone_label')} type="tel" placeholder={t('auth.register.phone_placeholder')} error={errors.phone?.message} {...register('phone')} />
+            <Input
+              label={t('auth.register.password_label')}
+              type="password"
+              placeholder={t('auth.register.password_placeholder')}
+              error={errors.password?.message}
+              hint={t('auth.register.password_hint')}
+              {...register('password')}
+            />
+            {serverError && <p className="text-sm text-red-600 text-center font-medium">{serverError}</p>}
+            <Button type="submit" fullWidth loading={isSubmitting}>{t('auth.register.submit')}</Button>
+          </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-0.5 bg-jet" />
+            <span className="text-xs font-condensed font-bold uppercase text-gray-400">{t('auth.register.divider_or')}</span>
+            <div className="flex-1 h-0.5 bg-jet" />
+          </div>
+
+          <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>{t('auth.register.google')}</Button>
+
+          <p className="text-center text-sm text-gray-600 mt-6">
+            {t('auth.register.have_account')}{' '}
+            <Link to="/login" className="text-haul font-bold hover:underline">{t('auth.register.signin')}</Link>
+          </p>
         </div>
-
-        <Button type="button" variant="secondary" fullWidth onClick={handleGoogleSignIn}>{t('auth.register.google')}</Button>
-
-        <p className="text-center text-sm text-gray-500 mt-6">
-          {t('auth.register.have_account')}{' '}
-          <Link to="/login" className="text-brand-500 font-medium hover:underline">{t('auth.register.signin')}</Link>
-        </p>
       </div>
     </div>
   )

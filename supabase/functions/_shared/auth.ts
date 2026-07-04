@@ -25,3 +25,27 @@ export async function getCallerProfile(req: Request) {
 
   return { profile, admin }
 }
+
+// Optional auth — guest quotes (e.g. /book) work without a logged-in user.
+export async function getOptionalCallerProfile(req: Request) {
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) return { profile: null, admin }
+
+  const token = authHeader.replace(/^Bearer\s+/i, '')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (anonKey && token === anonKey) return { profile: null, admin }
+
+  const anon = createClient(Deno.env.get('SUPABASE_URL')!, anonKey!)
+  const { data: { user }, error: authError } = await anon.auth.getUser(token)
+  if (authError || !user) return { profile: null, admin }
+
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || !profile || profile.is_suspended) return { profile: null, admin }
+  return { profile, admin }
+}

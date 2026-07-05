@@ -120,6 +120,20 @@ export interface PricingConfig {
   peak_evening?: boolean
 }
 
+export interface ThemeConfig {
+  id: string
+  brand_name: string
+  accent_color: string
+  accent_hover_color: string
+  accent_soft_color: string
+  ink_color: string
+  ink_muted_color: string
+  surface_muted_color: string
+  mover_color: string
+  header_color: string
+  updated_at: string
+}
+
 export interface SavedAddress {
   id: string
   user_id: string

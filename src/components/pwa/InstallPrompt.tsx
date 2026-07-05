@@ -15,7 +15,7 @@ export default function InstallPrompt() {
   if (!show || !canInstall) return null
 
   return (
-    <div className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px)+0.5rem)] left-4 right-4 z-30 mx-auto max-w-md card p-4 flex items-start gap-3 shadow-soft">
+    <div className="fixed bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom,0px)+0.5rem)] left-4 right-4 z-30 mx-auto max-w-md card p-4 flex items-start gap-3 shadow-soft">
       <Download size={20} className="text-haul mt-0.5 flex-shrink-0" />
       <div className="flex-1">
         <p className="font-bold text-sm text-jet">Install MoveThisOut</p>

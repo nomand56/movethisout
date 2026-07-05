@@ -12,7 +12,7 @@ const guestNav = [
 /** Guest booking shell — keeps bottom nav visible, content above it. */
 export default function GuestBookingLayout() {
   return (
-    <div className="min-h-dvh bg-surface-muted flex flex-col max-w-lg mx-auto w-full">
+    <div className="min-h-dvh bg-surface-muted flex flex-col max-w-lg mx-auto w-full h-dvh max-h-dvh overflow-hidden">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shrink-0">
         <div className="px-4 flex items-center justify-between h-14">
           <Link to="/" className="text-base font-bold text-ink">{BRAND_FULL}</Link>

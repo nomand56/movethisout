@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapPin, ChevronDown, Globe, Menu, X } from 'lucide-react'
-import { BRAND_NAME, LAUNCH_MARKET } from '../../lib/serviceArea'
+import { useTheme } from '../theme/ThemeProvider'
+import { resolveBarColor } from '../../lib/theme'
+import { LAUNCH_MARKET } from '../../lib/serviceArea'
 
 const NAV = [
   { label: 'Book', to: '/book' },
@@ -12,13 +14,17 @@ const NAV = [
 
 export default function PublicHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { theme } = useTheme()
 
   return (
-    <header className="bg-ink text-white sticky top-0 z-50">
+    <header
+      className="text-white sticky top-0 z-50 shadow-sm"
+      style={{ backgroundColor: resolveBarColor(theme.header_color) }}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6 min-w-0">
-          <Link to="/" className="shrink-0 font-bold text-lg tracking-tight">
-            {BRAND_NAME}
+          <Link to="/" className="shrink-0 font-bold text-lg tracking-tight text-white">
+            {theme.brand_name || 'MoveThisOut'}
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {NAV.map((item) => (
@@ -92,11 +98,11 @@ export function LocationChip() {
     <div className="flex items-center gap-1.5 text-sm text-ink-muted mb-4">
       <MapPin size={15} className="text-accent shrink-0" />
       <span>
-        {LAUNCH_MARKET.primary}, {LAUNCH_MARKET.province}
+        {LAUNCH_MARKET.primary}
       </span>
       <span className="text-ink-muted/60">·</span>
       <a href="#service-area" className="text-ink underline underline-offset-2 hover:text-accent">
-        Service area
+        Nationwide service
       </a>
     </div>
   )

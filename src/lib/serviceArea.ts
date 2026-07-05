@@ -1,37 +1,51 @@
-/** Launch market — Kamloops primary, nearby cities supported */
+/** Canada-wide service */
 export const LAUNCH_MARKET = {
-  primary: 'Kamloops',
-  province: 'BC',
-  nearby: ['Merritt', 'Salmon Arm'] as const,
-  mapCenter: { lat: 50.6745, lng: -120.3273 },
-  tagline: 'Local moves in Kamloops & nearby',
+  primary: 'Canada',
+  hq: 'Kamloops, BC',
+  mapCenter: { lat: 56.1304, lng: -106.3468 },
+  tagline: 'Moves across Canada — price upfront',
 }
 
-export const SERVICE_AREA_LABEL = 'Kamloops · Merritt · Salmon Arm'
+export const FEATURED_CITIES = [
+  'Toronto, ON',
+  'Vancouver, BC',
+  'Montreal, QC',
+  'Calgary, AB',
+  'Kamloops, BC',
+  'Ottawa, ON',
+] as const
+
+export const SERVICE_AREA_LABEL = 'Canada'
 
 export const BRAND_NAME = 'MoveThisOut'
 
-export const BRAND_FULL = `${BRAND_NAME} · ${LAUNCH_MARKET.primary}`
+export const BRAND_FULL = BRAND_NAME
 
 export const PROMO_LAUNCH = 'KAMLOOPS20'
 
-/** Rough bounds covering Kamloops, Merritt, Salmon Arm + nearby */
-const SERVICE_BOUNDS = {
-  minLat: 49.85,
-  maxLat: 51.25,
-  minLng: -121.35,
-  maxLng: -118.75,
+/** Approximate geographic bounds for Canada */
+const CANADA_BOUNDS = {
+  minLat: 41.68,
+  maxLat: 83.11,
+  minLng: -141.0,
+  maxLng: -52.62,
 }
 
 export function isInServiceArea(lat: number, lng: number): boolean {
   return (
-    lat >= SERVICE_BOUNDS.minLat &&
-    lat <= SERVICE_BOUNDS.maxLat &&
-    lng >= SERVICE_BOUNDS.minLng &&
-    lng <= SERVICE_BOUNDS.maxLng
+    lat >= CANADA_BOUNDS.minLat &&
+    lat <= CANADA_BOUNDS.maxLat &&
+    lng >= CANADA_BOUNDS.minLng &&
+    lng <= CANADA_BOUNDS.maxLng
   )
 }
 
 export function serviceAreaError(): string {
-  return 'We only serve Kamloops, Merritt, and Salmon Arm right now. Pick addresses in that area.'
+  return 'Please choose an address in Canada.'
+}
+
+/** Restrict Google Places suggestions to Canadian addresses */
+export const CANADA_AUTOCOMPLETE_OPTIONS: google.maps.places.AutocompleteOptions = {
+  fields: ['formatted_address', 'geometry'],
+  componentRestrictions: { country: 'ca' },
 }

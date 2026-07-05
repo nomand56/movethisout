@@ -19,7 +19,7 @@ interface Props {
 
 /**
  * Map + bottom sheet that lives INSIDE the layout main area.
- * Bottom nav stays visible — sheet ends above it (parent uses main-with-nav padding).
+ * Map + bottom sheet inside the layout main (main sits above bottom nav in flex layout).
  */
 export default function MapBookingShell({
   step,
@@ -30,7 +30,7 @@ export default function MapBookingShell({
   showProgress = true,
 }: Props) {
   return (
-    <div className="absolute inset-x-0 top-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] flex flex-col bg-surface-muted">
+    <div className="absolute inset-0 flex flex-col bg-surface-muted">
       {/* Map */}
       <div className="relative flex-1 min-h-0">
         <BookingMap pickup={pickup} dropoff={dropoff} className="absolute inset-0 w-full h-full" />

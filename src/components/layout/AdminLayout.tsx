@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, UserCheck, Briefcase, Users, TrendingUp, LogOut, DollarSign } from 'lucide-react'
+import { LayoutDashboard, UserCheck, Briefcase, Users, TrendingUp, LogOut, DollarSign, Palette } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function AdminLayout() {
@@ -30,6 +30,7 @@ export default function AdminLayout() {
           <NavLink to="/admin/users" className={linkClass}><Users size={18} />Users</NavLink>
           <NavLink to="/admin/revenue" className={linkClass}><TrendingUp size={18} />Revenue</NavLink>
           <NavLink to="/admin/pricing" className={linkClass}><DollarSign size={18} />Pricing</NavLink>
+          <NavLink to="/admin/theme" className={linkClass}><Palette size={18} />Theme</NavLink>
         </nav>
         <div className="px-3 pb-4">
           <button onClick={logout} className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-ink-muted hover:bg-gray-100 rounded-lg transition w-full">

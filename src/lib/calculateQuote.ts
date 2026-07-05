@@ -42,9 +42,9 @@ function isPeak(
 async function localQuote(input: QuoteInput): Promise<PriceQuote> {
   const distance_km = haversineKm(input.pickup_lat, input.pickup_lng, input.dropoff_lat, input.dropoff_lng)
 
-  if (distance_km > 200) {
+  if (distance_km > 5000) {
     throw new Error(
-      'That route looks too long for a local move. Use addresses in Kamloops, Merritt, or Salmon Arm.',
+      'That route is very long. Contact support for cross-country moves over 5,000 km.',
     )
   }
 

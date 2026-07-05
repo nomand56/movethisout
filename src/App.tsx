@@ -7,6 +7,7 @@ import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/authStore'
 import { consumePostAuthRedirect } from './lib/postAuthRedirect'
 import { useReferralCapture } from './hooks/useReferralCapture'
+import ThemeProvider from './components/theme/ThemeProvider'
 import OfflineBanner from './components/ui/OfflineBanner'
 import Spinner from './components/ui/Spinner'
 import ProtectedRoute from './components/auth/ProtectedRoute'
@@ -50,6 +51,7 @@ import AdminJobDetailPage from './pages/admin/JobDetailPage'
 import AdminUsersPage from './pages/admin/UsersPage'
 import RevenuePage from './pages/admin/RevenuePage'
 import AdminPricingPage from './pages/admin/PricingPage'
+import AdminThemePage from './pages/admin/ThemePage'
 import MoverRouteGuard from './components/auth/MoverRouteGuard'
 import GuestBookingLayout from './components/layout/GuestBookingLayout'
 import InstallPrompt from './components/pwa/InstallPrompt'
@@ -97,6 +99,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <BrowserRouter>
         <OfflineBanner />
         <InstallPrompt />
@@ -148,12 +151,14 @@ export default function App() {
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/admin/revenue" element={<RevenuePage />} />
               <Route path="/admin/pricing" element={<AdminPricingPage />} />
+              <Route path="/admin/theme" element={<AdminThemePage />} />
             </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

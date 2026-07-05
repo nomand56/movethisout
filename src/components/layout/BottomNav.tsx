@@ -20,7 +20,7 @@ export default function BottomNav({ items, variant = 'customer' }: Props) {
   return (
     <nav
       className={clsx(
-        'fixed bottom-0 left-0 right-0 z-40 border-t nav-safe-pb',
+        'shrink-0 w-full z-40 border-t nav-safe-pb',
         isMover ? 'bg-mover border-slate-600' : 'bg-white border-gray-200',
       )}
     >

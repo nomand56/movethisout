@@ -1,10 +1,9 @@
 import { useRef, useEffect, useState } from 'react'
 import { Autocomplete } from '@react-google-maps/api'
+import { CANADA_AUTOCOMPLETE_OPTIONS } from '../../lib/serviceArea'
 import { clsx } from '../../lib/clsx'
 
-const AUTOCOMPLETE_OPTIONS: google.maps.places.AutocompleteOptions = {
-  fields: ['formatted_address', 'geometry'],
-}
+const AUTOCOMPLETE_OPTIONS = CANADA_AUTOCOMPLETE_OPTIONS
 
 interface Props {
   label?: string

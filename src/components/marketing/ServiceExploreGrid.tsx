@@ -13,7 +13,7 @@ const SERVICES = [
   {
     icon: Truck,
     title: 'Local move',
-    desc: 'Apartment, house, or room — movers with trucks in Kamloops.',
+    desc: 'Apartment, house, or room — movers with trucks near you.',
     to: '/book',
     cta: 'Book',
   },
@@ -41,14 +41,14 @@ const SERVICES = [
   {
     icon: Briefcase,
     title: 'Business moves',
-    desc: 'Office equipment and retail inventory across BC Interior.',
+    desc: 'Office equipment and retail inventory anywhere in Canada.',
     to: '/book',
     cta: 'Details',
   },
   {
     icon: Wallet,
     title: 'Drive & earn',
-    desc: 'Own a truck? Claim jobs on your schedule in Kamloops.',
+    desc: 'Own a truck? Claim jobs on your schedule across Canada.',
     to: '/mover/login',
     cta: 'Apply',
   },
@@ -157,7 +157,7 @@ export function PublicFooter() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center sm:text-left flex flex-col sm:flex-row sm:justify-between gap-6">
         <div>
           <p className="font-bold text-ink">MoveThisOut</p>
-          <p className="text-sm text-ink-muted mt-1">Local moves · Kamloops, Merritt & Salmon Arm</p>
+          <p className="text-sm text-ink-muted mt-1">Moves across Canada — upfront price</p>
           <p className="text-xs text-ink-muted mt-3">© {new Date().getFullYear()} MoveThisOut</p>
         </div>
         <div className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-2 text-sm text-ink-muted">

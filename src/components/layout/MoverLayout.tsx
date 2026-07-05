@@ -7,12 +7,12 @@ export default function MoverLayout() {
   const isActiveDrive = pathname === '/mover/active'
 
   return (
-    <div className="min-h-dvh bg-surface-muted flex flex-col max-w-lg mx-auto w-full">
+    <div className="min-h-dvh h-dvh max-h-dvh overflow-hidden bg-surface-muted flex flex-col max-w-lg mx-auto w-full">
       <header className="bg-mover text-white sticky top-0 z-40 shrink-0">
         <div className="px-4 flex items-center justify-between h-14">
           <div>
             <p className="text-base font-bold">Driver</p>
-            <p className="text-[10px] text-white/60">MoveThisOut · Kamloops</p>
+            <p className="text-[10px] text-white/60">MoveThisOut · Canada</p>
           </div>
           <span className="text-xs bg-white/10 px-2.5 py-1 rounded-lg font-medium">Mover</span>
         </div>
@@ -20,7 +20,7 @@ export default function MoverLayout() {
       <main
         className={clsx(
           'flex-1 w-full min-h-0 relative',
-          isActiveDrive ? 'overflow-hidden' : 'px-4 py-5 main-with-nav overflow-y-auto',
+          isActiveDrive ? 'overflow-hidden' : 'px-4 py-5 overflow-y-auto',
         )}
       >
         <Outlet />

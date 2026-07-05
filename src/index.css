@@ -5,6 +5,17 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --theme-accent-rgb: 232 93 4;
+    --theme-accent-hover-rgb: 212 83 3;
+    --theme-accent-soft-rgb: 255 244 237;
+    --theme-ink-rgb: 26 26 26;
+    --theme-ink-muted-rgb: 107 114 128;
+    --theme-surface-muted-rgb: 245 245 247;
+    --theme-mover-rgb: 30 41 59;
+    --theme-header-rgb: 26 26 26;
+  }
+
   html,
   html.light {
     color-scheme: light only;
@@ -56,18 +67,338 @@
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
 
-  /* Space above fixed bottom nav — used on scrollable pages */
-  .main-with-nav {
-    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* Bottom nav height token */
+  /* Legacy token — nav is in flex flow; kept for install prompt positioning */
   :root {
-    --bottom-nav-h: 4.25rem;
+    --bottom-nav-h: 4.5rem;
   }
 
   /* Google Places dropdown above sheets */
   .pac-container {
     z-index: 10000 !important;
+  }
+
+  /* ── Home booking route icons ── */
+  .booking-route-stack {
+    padding-left: 0.125rem;
+  }
+  .booking-route-line {
+    position: absolute;
+    left: 1.1875rem;
+    top: 2.25rem;
+    bottom: 2.25rem;
+    width: 2px;
+    z-index: 0;
+    border-radius: 999px;
+    background: linear-gradient(
+      to bottom,
+      #1a1a1a 0%,
+      #d1d5db 45%,
+      #e85d04 100%
+    );
+    background-size: 100% 200%;
+    animation: booking-line-flow 2.5s ease-in-out infinite;
+  }
+  .booking-route-marker {
+    @apply flex shrink-0 items-center justify-center rounded-full shadow-sm;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .booking-route-marker--pickup {
+    @apply bg-white ring-2 ring-ink/15;
+    animation: booking-marker-pulse 2.5s ease-in-out infinite;
+  }
+  .booking-route-marker--dropoff {
+    background: linear-gradient(135deg, #ff7a1a 0%, #e85d04 100%);
+    box-shadow: 0 2px 10px rgba(232, 93, 4, 0.35);
+    animation: booking-marker-bounce 2.5s ease-in-out 0.5s infinite;
+  }
+
+  @keyframes booking-line-flow {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 0% 100%; }
+  }
+  @keyframes booking-marker-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+    50% { transform: scale(1.06); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); }
+  }
+  @keyframes booking-marker-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  /* ── Hero promo card — full animations ── */
+  .hero-promo-card {
+    @apply relative aspect-[5/4] sm:aspect-square rounded-3xl overflow-hidden shadow-soft;
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: hero-card-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hero-promo-card:hover {
+    transform: scale(1.03) translateY(-4px);
+  }
+
+  .hero-promo-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      -45deg,
+      #ff9a3c,
+      #e85d04,
+      #ff6b00,
+      #c45106,
+      #ff8c2a,
+      #8b3a0f,
+      #e85d04
+    );
+    background-size: 400% 400%;
+    animation: hero-gradient-flow 5s ease infinite;
+  }
+
+  .hero-promo-gradient-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 200, 120, 0.45) 0%, transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(255, 100, 30, 0.35) 0%, transparent 50%);
+    animation: hero-overlay-pulse 4s ease-in-out infinite alternate;
+  }
+
+  .hero-promo-orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(36px);
+  }
+  .hero-promo-orb--1 {
+    width: 7rem;
+    height: 7rem;
+    top: 10%;
+    left: 55%;
+    background: rgba(255, 196, 0, 0.55);
+    animation: hero-orb-1 6s ease-in-out infinite;
+  }
+  .hero-promo-orb--2 {
+    width: 5rem;
+    height: 5rem;
+    top: 55%;
+    left: 15%;
+    background: rgba(255, 140, 50, 0.5);
+    animation: hero-orb-2 7s ease-in-out infinite;
+  }
+  .hero-promo-orb--3 {
+    width: 6rem;
+    height: 6rem;
+    bottom: 20%;
+    right: 10%;
+    background: rgba(255, 80, 20, 0.45);
+    animation: hero-orb-3 5.5s ease-in-out infinite;
+  }
+
+  .hero-promo-route {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .hero-promo-route-line {
+    animation: hero-route-dash 2.5s linear infinite;
+  }
+  .hero-promo-route-dot--a {
+    animation: hero-dot-pulse 2s ease-in-out infinite;
+  }
+  .hero-promo-route-dot--b {
+    animation: hero-dot-pulse 2s ease-in-out 1s infinite;
+  }
+
+  .hero-promo-truck-bg {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    color: rgba(255, 255, 255, 0.18);
+    z-index: 4;
+    animation: hero-truck-drive 4s ease-in-out infinite;
+  }
+
+  .hero-icon {
+    @apply absolute z-10 flex items-center justify-center rounded-2xl border border-white/35 text-white shadow-lg;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .hero-icon--box {
+    top: 1.5rem;
+    left: 1.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    animation: hero-float-a 3.2s ease-in-out infinite;
+  }
+  .hero-icon--pickup {
+    top: 38%;
+    left: 12%;
+    width: 2.75rem;
+    height: 2.75rem;
+    animation: hero-float-b 3.8s ease-in-out 0.4s infinite;
+  }
+  .hero-icon--home {
+    top: 28%;
+    right: 18%;
+    width: 2.75rem;
+    height: 2.75rem;
+    animation: hero-float-c 4.2s ease-in-out 0.8s infinite;
+  }
+  .hero-icon--truck {
+    bottom: 42%;
+    right: 12%;
+    width: 3.25rem;
+    height: 3.25rem;
+    background: rgba(255, 255, 255, 0.3);
+    animation: hero-truck-bounce 3s ease-in-out infinite;
+  }
+
+  .hero-promo-shine {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 8;
+    pointer-events: none;
+  }
+  .hero-promo-shine::after {
+    content: '';
+    position: absolute;
+    inset: -50% -50%;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent 60%
+    );
+    animation: hero-shine-sweep 3.5s ease-in-out infinite;
+  }
+
+  .hero-promo-content {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 20;
+    padding: 5rem 1.5rem 1.5rem;
+    background: linear-gradient(to top, rgba(45, 15, 5, 0.92) 0%, rgba(45, 15, 5, 0.5) 55%, transparent 100%);
+  }
+  @media (min-width: 640px) {
+    .hero-promo-content {
+      padding: 6rem 2rem 2rem;
+    }
+  }
+
+  .hero-promo-title {
+    @apply text-2xl sm:text-[1.65rem] font-bold text-white leading-tight mb-1;
+    animation: hero-text-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  }
+  .hero-promo-sub {
+    @apply text-sm text-white/90 mb-4;
+    animation: hero-text-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+  }
+  .hero-promo-cta {
+    @apply inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-md;
+    animation: hero-text-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both,
+      hero-cta-glow 2.5s ease-in-out 1.2s infinite;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  }
+  .hero-promo-cta:hover {
+    transform: scale(1.06) translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    background-color: #fafafa;
+  }
+  .hero-promo-cta:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes hero-gradient-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes hero-overlay-pulse {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1.05); }
+  }
+  @keyframes hero-orb-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-18px, 14px) scale(1.15); }
+  }
+  @keyframes hero-orb-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(14px, -20px) scale(1.2); }
+  }
+  @keyframes hero-orb-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-10px, -14px) scale(1.1); }
+  }
+  @keyframes hero-route-dash {
+    to { stroke-dashoffset: -28; }
+  }
+  @keyframes hero-dot-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  @keyframes hero-card-in {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes hero-truck-drive {
+    0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
+    33% { transform: translateX(-14px) translateY(-6px) rotate(-3deg); }
+    66% { transform: translateX(10px) translateY(4px) rotate(2deg); }
+  }
+  @keyframes hero-float-a {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-12px) rotate(4deg); }
+  }
+  @keyframes hero-float-b {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50% { transform: translateY(-10px) translateX(6px); }
+  }
+  @keyframes hero-float-c {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-14px) rotate(-5deg); }
+  }
+  @keyframes hero-truck-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    40% { transform: translateY(-8px) scale(1.05); }
+    60% { transform: translateY(-4px) scale(1.02); }
+  }
+  @keyframes hero-shine-sweep {
+    0% { transform: translateX(-80%) rotate(25deg); }
+    60%, 100% { transform: translateX(120%) rotate(25deg); }
+  }
+  @keyframes hero-text-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hero-cta-glow {
+    0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
+    50% { box-shadow: 0 4px 24px rgba(232, 93, 4, 0.45); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .booking-route-line,
+    .booking-route-marker--pickup,
+    .booking-route-marker--dropoff,
+    .hero-promo-gradient,
+    .hero-promo-gradient-overlay,
+    .hero-promo-orb,
+    .hero-promo-route-line,
+    .hero-promo-route-dot,
+    .hero-promo-truck-bg,
+    .hero-icon,
+    .hero-promo-shine::after,
+    .hero-promo-card,
+    .hero-promo-title,
+    .hero-promo-sub,
+    .hero-promo-cta {
+      animation: none !important;
+    }
+    .hero-promo-card:hover {
+      transform: none;
+    }
   }
 }

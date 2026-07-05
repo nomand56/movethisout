@@ -5,7 +5,7 @@ export default function LoginPage() {
   return (
     <LoginForm
       title="Welcome back"
-      subtitle="Book and track your moves in Kamloops."
+      subtitle="Book and track your moves across Canada."
       registerHref="/register?role=requester"
       registerLabel="New here?"
       afterLoginPath="/"

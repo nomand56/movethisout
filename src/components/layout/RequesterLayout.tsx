@@ -8,7 +8,7 @@ export default function RequesterLayout() {
   const isBooking = pathname === '/app/jobs/new'
 
   return (
-    <div className="min-h-dvh bg-surface-muted flex flex-col max-w-lg mx-auto w-full">
+    <div className="min-h-dvh h-dvh max-h-dvh overflow-hidden bg-surface-muted flex flex-col max-w-lg mx-auto w-full">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shrink-0">
         <div className="px-4 flex items-center justify-between h-14">
           <Link to="/app/dashboard" className="text-base font-bold text-ink tracking-tight">
@@ -21,7 +21,7 @@ export default function RequesterLayout() {
       <main
         className={clsx(
           'flex-1 w-full min-h-0 relative',
-          isBooking ? 'overflow-hidden' : 'px-4 py-5 main-with-nav overflow-y-auto',
+          isBooking ? 'overflow-hidden' : 'px-4 py-5 overflow-y-auto',
         )}
       >
         <Outlet />

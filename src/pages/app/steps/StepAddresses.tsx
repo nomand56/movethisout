@@ -83,7 +83,7 @@ export default function StepAddresses({ onNext }: Props) {
 
       <AddressAutocomplete
         label="Pickup"
-        placeholder="350 Lansdowne St, Kamloops"
+        placeholder="123 Main St, Toronto, ON"
         error={errors.pickup}
         defaultValue={store.pickup_address}
         onPlaceSelected={({ address, lat, lng }) =>
@@ -92,7 +92,7 @@ export default function StepAddresses({ onNext }: Props) {
       />
       <AddressAutocomplete
         label="Drop-off"
-        placeholder="450 Lansdowne St, Kamloops"
+        placeholder="456 Queen St, Vancouver, BC"
         error={errors.dropoff}
         defaultValue={store.dropoff_address}
         onPlaceSelected={({ address, lat, lng }) =>

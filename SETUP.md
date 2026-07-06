@@ -8,7 +8,7 @@
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## 2. Get a Google Maps API key
+## 2. Get a Google Maps API keynmd
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a project, enable these APIs:
